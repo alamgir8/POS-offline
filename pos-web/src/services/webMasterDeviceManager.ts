@@ -422,7 +422,8 @@ class WebMasterDeviceManager {
   } {
     return {
       isRunning: this.status.serverRunning,
-      ip: typeof window !== 'undefined' ? window.location.hostname : 'localhost',
+      ip:
+        typeof window !== 'undefined' ? window.location.hostname : 'localhost',
       port: this.serverConfig.port,
       connectedDevices: this.status.deviceCount,
     };
@@ -434,7 +435,10 @@ class WebMasterDeviceManager {
   }
 
   // Legacy: demo helper – no-op other than logging
-  public simulateDeviceConnection(deviceId: string, deviceType: 'kds' | 'bds' | 'pos'): void {
+  public simulateDeviceConnection(
+    deviceId: string,
+    deviceType: 'kds' | 'bds' | 'pos'
+  ): void {
     console.log(`(simulate) device connected: ${deviceId} [${deviceType}]`);
   }
 }
