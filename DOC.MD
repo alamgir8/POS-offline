@@ -59,13 +59,123 @@ CloudClever POS is a modern, offline-first Point of Sale system designed for res
 
 ---
 
-## 2) High‑Level Architecture
+---
 
-* **Clients (Web/Native)**: Local databases (Web: **RxDB Dexie/IndexedDB**; Native: **SQLite**). UI reads from local read models. All mutations emit **events**.
-* **Local Hub (per store)**: Socket.io relay + event log cache + per‑device cursors + discovery (mDNS). Optional: local printer/KDS serving.
-* **Cloud**: Idempotent event ingestion + downstream fan‑out (when online). Issues **Cluster Tokens** to devices.
+## 2. Architecture
 
-**Transport**: Socket.io over LAN. **Discovery**: mDNS (`_poshub._tcp`). **Security**: JWT Cluster Tokens (offline‑verifiable signature).
+### High-Level Overview
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Web Client    │    │  Native Client  │    │   KDS/BDS Tab   │
+│  (React/Vite)   │    │ (React Native)  │    │   (React)       │
+└─────────┬───────┘    └─────────┬───────┘    └─────────┬───────┘
+          │                      │                      │
+          │         Socket.IO over LAN/WiFi             │
+          │                      │                      │
+    ┌─────┴──────────────────────┴──────────────────────┴─────┐
+    │                 Hub Server                             │
+    │           (Node.js + Socket.IO)                        │
+    │     • Event Store (SQLite)                             │
+    │     • Real-time Relay                                  │
+    │     • mDNS Advertisement                               │
+    │     • Multi-tenant Isolation                           │
+    └────────────────────┬───────────────────────────────────┘
+                         │
+                    (Optional)
+                         │
+    ┌────────────────────┴───────────────────────────────────┐
+    │                Cloud Bridge                            │
+    │     • Event Synchronization                            │
+    │     • Backup & Recovery                                │
+    │     • Cross-store Analytics                            │
+    └────────────────────────────────────────────────────────┘
+```
+
+### Core Components
+
+#### 1. **Hub Server** (`/hub`)
+- **Technology**: Node.js + Express + Socket.IO
+- **Storage**: SQLite for event persistence
+- **Role**: Central relay for real-time event distribution
+- **Discovery**: Advertises via mDNS (`_cloudclever-pos._tcp`)
+- **Port**: 4001 (configurable)
+
+#### 2. **Web Client** (`/web`)
+- **Technology**: React + Vite + Socket.IO Client
+- **Storage**: RxDB with Dexie (IndexedDB)
+- **Role**: POS interface for cashiers/managers
+- **Features**: Order management, payments, reports
+
+#### 3. **Native Client** (`/native`)
+- **Technology**: React Native + Expo + Socket.IO Client
+- **Storage**: SQLite via Expo
+- **Role**: Mobile POS, kitchen displays
+- **Features**: Touch-optimized interface, offline operation
+
+#### 4. **Shared Types** (`/shared`)
+- **Technology**: TypeScript definitions
+- **Role**: Common interfaces and utilities
+- **Contents**: EventBase, Order types, validation functions
+
+---
+
+## 3. Quick Start Guide
+
+### Prerequisites
+
+- **Node.js**: 18+ LTS
+- **npm** or **yarn**
+- **Git**
+- **Expo CLI**: `npm install -g @expo/cli`
+- **Development Device**: iOS Simulator, Android Emulator, or physical device
+
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/alamgir8/POS-offline.git
+cd POS-offline
+```
+
+### 2. Start Hub Server
+
+```bash
+cd hub
+npm install
+npm run dev
+```
+
+The hub server will start on `http://localhost:4001` and advertise via mDNS.
+
+### 3. Start Web Client
+
+```bash
+# Open new terminal
+cd web
+npm install
+npm run dev
+```
+
+Access the web interface at `http://localhost:5173`
+
+### 4. Start Native Client
+
+```bash
+# Open new terminal
+cd native
+npm install
+npx expo start
+```
+
+Follow Expo CLI instructions to run on your device/simulator.
+
+### 5. Test Offline Sync
+
+1. **Create an order** on the web client
+2. **Observe real-time update** on the native client
+3. **Disconnect internet** (keep devices on same WiFi)
+4. **Continue creating/updating orders** - sync still works!
+5. **Reconnect internet** - all data synchronizes to cloud
 
 ---
 

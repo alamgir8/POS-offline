@@ -1,7 +1,8 @@
 # dependencies
 node_modules/
 
-shared
+shared/
+shared/**/node_modules/
 
 # expo
 .expo/
