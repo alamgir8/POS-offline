@@ -1,0 +1,42 @@
+{
+  "name": "offline-pos-web",
+  "version": "1.0.0",
+  "description": "Web client for offline POS system",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tailwindcss/forms": "^0.5.9",
+    "dexie": "^4.2.0",
+    "lucide-react": "^0.451.0",
+    "pouchdb-adapter-idb": "^8.0.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-hot-toast": "^2.4.1",
+    "rxdb": "^15.39.0",
+    "socket.io-client": "^4.8.1",
+    "tailwindcss": "^3.4.14",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/uuid": "^10.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0"
+  },
+  "keywords": [
+    "pos",
+    "offline",
+    "react",
+    "vite",
+    "rxdb"
+  ]
+}

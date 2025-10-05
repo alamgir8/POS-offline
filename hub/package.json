@@ -1,0 +1,43 @@
+{
+  "name": "offline-pos-hub",
+  "version": "1.0.0",
+  "description": "LAN synchronization hub for offline POS system",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/src/index.js",
+    "dev": "NODE_OPTIONS=--experimental-specifier-resolution=node node --loader ts-node/esm src/index.ts",
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mdns": "^2.7.2",
+    "socket.io": "^4.8.1",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/mdns": "^0.0.38",
+    "@types/node": "^22.8.1",
+    "@types/uuid": "^10.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  },
+  "keywords": [
+    "pos",
+    "offline",
+    "synchronization",
+    "real-time",
+    "event-sourcing"
+  ],
+  "author": "Senior Product Manager + Technical Architect",
+  "license": "MIT"
+}
