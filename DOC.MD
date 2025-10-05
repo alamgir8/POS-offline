@@ -1,14 +1,44 @@
-# CloudClever POS Offline Sync — Overview & Full Setup (Local + Production)
+# CloudClever POS Offline Sync — Complete Documentation
 
 **Version**: 1.0 • **Scope**: Retail + Restaurant (KDS/BDS) • **Stack**: MERN, Expo RN, Node Hub • **Mode**: Online + True Offline (LAN)
 
 ---
 
-## 0) Executive Summary
+## Table of Contents
+1. [Project Overview](#1-project-overview)
+2. [Architecture](#2-architecture)
+3. [Quick Start Guide](#3-quick-start-guide)
+4. [Local Development](#4-local-development)
+5. [Production Deployment](#5-production-deployment)
+6. [API Documentation](#6-api-documentation)
+7. [Troubleshooting](#7-troubleshooting)
+8. [Advanced Configuration](#8-advanced-configuration)
 
-We will enable **true offline, multi‑device real‑time sync** per store using a **Local Hub** (Node + Socket.io) on the store’s LAN. Each client (Web + Native) writes **locally first**, emits **append‑only events**, and receives **real‑time replication** through the Hub. When WAN returns, the Hub reconciles with the cloud. This design supports **park/re‑park/pay orders**, **KDS/BDS**, and **multi‑tenancy** with strong separation by `{tenantId, storeId}`.
+---
 
-**Production mapping**: **One Hub per store** (Raspberry Pi / mini‑PC). **Clients auto‑discover** via mDNS. **Cluster Tokens (JWT)** secure admission offline. **Cloud Bridge** ensures eventual consistency with the central API.
+## 1. Project Overview
+
+### What is CloudClever POS?
+
+CloudClever POS is a modern, offline-first Point of Sale system designed for restaurants and retail stores. It enables **true offline operations** with real-time synchronization across multiple devices on the same local network, even when internet connectivity is unavailable.
+
+### Key Features
+
+- ✅ **Offline-First Architecture**: Full functionality without internet
+- ✅ **Real-time Sync**: Multi-device updates < 500ms over LAN
+- ✅ **Multi-tenant Support**: Secure tenant/store isolation
+- ✅ **Event Sourcing**: Append-only event log with conflict resolution
+- ✅ **Cross-Platform**: Web (React) + Mobile (React Native)
+- ✅ **Auto-Discovery**: Devices automatically find hub via mDNS
+- ✅ **Kitchen Display System (KDS)**: Real-time order management
+- ✅ **Bar Display System (BDS)**: Beverage order tracking
+
+### Use Cases
+
+- **Restaurants**: POS terminals, kitchen displays, bar displays
+- **Retail Stores**: Multiple checkout terminals, inventory management
+- **Pop-up Shops**: Temporary locations with limited connectivity
+- **Remote Locations**: Areas with unreliable internet
 
 ---
 
