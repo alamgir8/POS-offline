@@ -829,41 +829,440 @@ find "$BACKUP_DIR" -name "*.tar.gz" -mtime +7 -delete
 
 ---
 
-### 6.4 Docker Compose (Hub + auto‑update)
+## 6. API Documentation
 
-`/opt/pos-hub/docker-compose.yml`
+### Event System
 
-```yaml
-services:
-  hub:
-    image: cloudclever/pos-hub:1.0.0   # pin semver
-    restart: unless-stopped
-    env_file: .env
-    ports: ["${PORT}:${PORT}"]
-    volumes: ["./data:/data"]
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:${PORT}/healthz"]
-      interval: 30s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+#### EventBase Interface
 
-  watchtower:
-    image: containrrr/watchtower
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: --label-enable --cleanup --interval 3600
+```typescript
+export interface EventBase {
+  eventId: string;            // UUID v7 preferred (v4 acceptable)
+  tenantId: string;           // Multi-tenant boundary
+  storeId: string;            // Store/branch identifier
+  aggregateType: 'order' | 'kds' | 'bds' | 'inventory' | 'payment';
+  aggregateId: string;        // Entity ID (orderId, ticketId, etc.)
+  version: number;            // Monotonic version per aggregate
+  type: string;               // Specific event type
+  at: string;                 // ISO timestamp
+  actor: {                    // Who performed the action
+    deviceId: string;
+    userId?: string;
+    userName?: string;
+  };
+  clock: {                    // Logical clock for ordering
+    lamport: number;
+    deviceId: string;
+  };
+  payload: Record<string, any>; // Event-specific data
+}
 ```
 
-Bring up:
+#### Event Types
 
+**Order Events:**
+- `order.created` - New order created
+- `order.updated` - Order items/details changed
+- `order.parked` - Order temporarily saved
+- `order.reparked` - Parked order resumed
+- `order.paid` - Payment completed
+- `order.cancelled` - Order cancelled
+- `order.locked` - Order locked for editing
+- `order.lock.renewed` - Edit lock extended
+- `order.lock.released` - Edit lock released
+
+**KDS Events:**
+- `kds.ticket.created` - Kitchen ticket created
+- `kds.ticket.started` - Cooking started
+- `kds.ticket.completed` - Dish ready
+- `kds.ticket.cancelled` - Order cancelled
+
+**BDS Events:**
+- `bds.ticket.created` - Bar ticket created
+- `bds.ticket.started` - Preparation started
+- `bds.ticket.completed` - Drink ready
+
+### Socket.IO API
+
+#### Client → Hub Events
+
+**Connection Handshake:**
+```typescript
+// Event: 'hello'
+interface HelloMessage {
+  deviceId: string;
+  tenantId: string;
+  storeId: string;
+  cursor?: number;           // Last seen Lamport clock
+  auth?: {
+    sessionId: string;
+    userId: string;
+  };
+}
+```
+
+**Event Submission:**
+```typescript
+// Event: 'events.append'
+// Payload: EventBase (single event)
+```
+
+**Cursor Request:**
+```typescript
+// Event: 'cursor.request'
+interface CursorRequest {
+  fromLamport: number;
+}
+```
+
+#### Hub → Client Events
+
+**Connection Acknowledgment:**
+```typescript
+// Event: 'hello.ack'
+interface HelloAckMessage {
+  leaderId: string;
+  serverTime: string;       // ISO timestamp
+  snapshotNeeded: boolean;
+}
+```
+
+**Real-time Event Relay:**
+```typescript
+// Event: 'events.relay'
+// Payload: EventBase (single event)
+```
+
+**Bulk Event Sync:**
+```typescript
+// Event: 'events.bulk'
+interface EventsBulkMessage {
+  events: EventBase[];
+  fromLamport: number;
+  toLamport: number;
+}
+```
+
+### REST API
+
+#### Health Check
+```http
+GET /api/health
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "service": "cloudclever-pos-hub",
+  "version": "1.0.0",
+  "status": "healthy",
+  "capabilities": [
+    "real-time-sync",
+    "offline-queue",
+    "multi-tenant"
+  ],
+  "data": {
+    "uptime": 3600000,
+    "connectedClients": 5,
+    "totalEvents": 1234
+  }
+}
+```
+
+#### Hub Statistics
+```http
+GET /api/stats
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "connectedClients": 5,
+    "totalEvents": 1234,
+    "eventsPerTenant": {
+      "tenant1": 800,
+      "tenant2": 434
+    },
+    "uptime": 3600000
+  }
+}
+```
+
+#### Authentication
+```http
+POST /api/auth/login
+```
+
+**Request:**
+```json
+{
+  "email": "admin@restaurant.demo",
+  "password": "password123",
+  "tenantId": "demo"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "userId": "user123",
+      "email": "admin@restaurant.demo",
+      "userName": "Store Admin",
+      "tenantId": "demo",
+      "storeId": "store_001"
+    },
+    "session": {
+      "sessionId": "session123",
+      "deviceId": "device456",
+      "expiresAt": "2024-01-01T12:00:00Z"
+    }
+  }
+}
+```
+
+---
+
+## 7. Troubleshooting
+
+### Common Issues
+
+#### 1. Connection Problems
+
+**Symptom**: Clients cannot connect to hub
+
+**Solutions**:
+- Verify hub is running: `curl http://hub-ip:4001/api/health`
+- Check firewall settings on hub device
+- Ensure all devices are on same network
+- Verify mDNS is working: `avahi-browse -t _cloudclever-pos._tcp`
+
+#### 2. Sync Delays
+
+**Symptom**: Events not syncing in real-time
+
+**Solutions**:
+- Check WebSocket connection in browser dev tools
+- Verify network latency: `ping hub-ip`
+- Check hub logs for errors: `docker compose logs hub`
+- Restart hub service: `docker compose restart hub`
+
+#### 3. Authentication Failures
+
+**Symptom**: Login rejected or session expired
+
+**Solutions**:
+- Verify credentials match demo accounts
+- Check tenant ID spelling
+- Clear browser cache/storage
+- Reset app data on mobile
+
+#### 4. Database Issues
+
+**Symptom**: Events not persisting or data corruption
+
+**Solutions**:
+- Check disk space: `df -h`
+- Verify SQLite file permissions
+- Restore from backup if necessary
+- Check for hardware issues
+
+#### 5. mDNS Discovery Failures
+
+**Symptom**: Clients cannot find hub automatically
+
+**Solutions**:
+- Verify Avahi is running: `systemctl status avahi-daemon`
+- Check service file: `/etc/avahi/services/pos-hub.service`
+- Use manual IP entry as fallback
+- Check network for mDNS blocking
+
+### Diagnostic Commands
+
+#### Hub Server
 ```bash
-docker compose pull
+# Check service status
+docker compose ps
+
+# View logs
+docker compose logs -f hub
+
+# Check database
+sqlite3 /opt/pos-hub/data/events.sqlite ".tables"
+
+# Test API endpoints
+curl http://localhost:4001/api/health
+curl http://localhost:4001/api/stats
+```
+
+#### Network Diagnostics
+```bash
+# Check mDNS services
+avahi-browse -t _cloudclever-pos._tcp
+
+# Test connectivity
+ping hub-ip
+nc -zv hub-ip 4001
+
+# Check open ports
+netstat -tulpn | grep 4001
+```
+
+#### Client Diagnostics
+```bash
+# Web client (browser console)
+localStorage.setItem('debug', 'pos:*');
+
+# Native client logs
+npx expo start --dev-client
+```
+
+### Performance Optimization
+
+#### Hub Server
+- Use SSD storage instead of microSD
+- Ensure adequate RAM (4GB recommended)
+- Use wired Ethernet connection
+- Enable log rotation to prevent disk fill
+
+#### Network
+- Use 5GHz WiFi for better performance
+- Position hub centrally for optimal coverage
+- Consider mesh network for large venues
+- Monitor bandwidth usage
+
+#### Clients
+- Clear browser cache periodically
+- Update to latest app versions
+- Monitor memory usage on older devices
+- Use offline mode when internet is slow
+
+---
+
+## 8. Advanced Configuration
+
+### Multi-Store Setup
+
+For businesses with multiple locations:
+
+#### 1. Central Management
+```bash
+# Each store gets unique configuration
+/opt/pos-hub-store1/.env
+/opt/pos-hub-store2/.env
+
+# Shared docker-compose template
+/opt/pos-templates/docker-compose.yml
+```
+
+#### 2. Automated Deployment
+```bash
+# Ansible playbook for fleet updates
+ansible-playbook -i inventory/stores deploy-hub.yml
+```
+
+### Custom Authentication
+
+#### JWT Token Configuration
+```javascript
+// Custom token payload
+{
+  "sub": "device123",
+  "aud": "pos-hub",
+  "tenantId": "restaurant-chain",
+  "storeId": "store-001",
+  "permissions": ["pos.create", "pos.view"],
+  "exp": 1640995200,
+  "iat": 1640908800
+}
+```
+
+### Event Processing
+
+#### Custom Event Handlers
+```typescript
+// Add custom business logic
+hub.on('events.append', (event: EventBase) => {
+  if (event.type === 'order.paid') {
+    // Trigger receipt printing
+    printReceipt(event.payload.order);
+    
+    // Update loyalty points
+    updateLoyaltyPoints(event.payload.customer);
+  }
+});
+```
+
+### Backup and Recovery
+
+#### Automated Backups
+```bash
+#!/bin/bash
+# /opt/pos-hub/backup.sh
+
+DATE=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="/opt/pos-hub/backups"
+
+# Create backup
+sqlite3 /opt/pos-hub/data/events.sqlite ".backup $BACKUP_DIR/events_$DATE.sqlite"
+
+# Upload to cloud (when online)
+if ping -c 1 google.com &> /dev/null; then
+    rsync -av $BACKUP_DIR/ user@backup-server:/backups/store-001/
+fi
+```
+
+#### Recovery Procedures
+```bash
+# Restore from backup
+docker compose down
+cp /opt/pos-hub/backups/events_YYYYMMDD_HHMMSS.sqlite /opt/pos-hub/data/events.sqlite
 docker compose up -d
 ```
+
+### Security Hardening
+
+#### SSL/TLS Configuration
+```bash
+# Generate certificates with mkcert
+mkcert -install
+mkcert hub.local 192.168.1.100
+
+# Update docker-compose.yml for HTTPS
+```
+
+#### Firewall Rules
+```bash
+# Allow only necessary ports
+sudo ufw allow 22/tcp     # SSH
+sudo ufw allow 4001/tcp   # POS Hub
+sudo ufw enable
+```
+
+---
+
+## Conclusion
+
+CloudClever POS provides a robust, offline-first solution for retail and restaurant operations. The system is designed to work reliably even when internet connectivity is poor or unavailable, while providing real-time synchronization across all devices in the store.
+
+For additional support or questions, please refer to the project repository or contact the development team.
+
+### Quick Reference Links
+
+- **GitHub Repository**: https://github.com/alamgir8/POS-offline
+- **Demo Credentials**: admin@restaurant.demo / password123
+- **Default Hub Port**: 4001
+- **mDNS Service**: _cloudclever-pos._tcp
+- **Health Check**: http://hub-ip:4001/api/health
+
+---
+
+*Last updated: October 2025*
 
 ### 6.5 Autostart
 
