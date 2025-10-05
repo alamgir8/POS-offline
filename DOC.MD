@@ -226,117 +226,608 @@ cloudclever-pos/
 
 ---
 
-## 5) Local Development Setup (Mac/Win/Linux)
+## 4. Local Development
 
-### 5.1 Prerequisites
+### Environment Setup
 
-* Node 20 LTS, npm or pnpm
-* Git, Docker Desktop (optional for running hub in container)
-* Expo CLI (`npm i -g expo`), iOS Simulator / Android Emulator
-* Same LAN for all devices when testing offline LAN behavior
+#### System Requirements
 
-### 5.2 Hub — Run locally (Node)
+- **Node.js**: 18.x LTS or higher
+- **npm**: 8.x or higher (or yarn 1.22+)
+- **Git**: Latest version
+- **Operating System**: macOS, Windows 10+, or Linux
+
+#### Development Tools
+
+```bash
+# Install Expo CLI globally
+npm install -g @expo/cli
+
+# Install development dependencies (optional)
+npm install -g typescript ts-node nodemon
+```
+
+### Project Structure
+
+```
+offline-pos/
+├── hub/                  # Node.js Hub Server
+│   ├── src/
+│   │   ├── index.ts     # Main server entry
+│   │   ├── auth.ts      # Authentication logic
+│   │   ├── eventStore.ts # Event persistence
+│   │   └── types.ts     # TypeScript definitions
+│   ├── package.json
+│   └── tsconfig.json
+├── web/                 # React Web Client
+│   ├── src/
+│   │   ├── App.tsx      # Main app component
+│   │   ├── contexts/    # React contexts (Auth, Data)
+│   │   ├── components/  # UI components
+│   │   └── sync/        # Sync client logic
+│   ├── package.json
+│   └── vite.config.ts
+├── native/              # React Native Client
+│   ├── src/
+│   │   ├── app/         # Expo Router pages
+│   │   ├── contexts/    # React contexts (Auth, Sync)
+│   │   ├── components/  # UI components
+│   │   └── db/          # SQLite database
+│   ├── package.json
+│   └── app.json
+├── shared/              # Shared TypeScript definitions
+│   ├── types.ts         # Common interfaces
+│   └── utils.ts         # Utility functions
+└── README.md
+```
+
+### Detailed Setup Instructions
+
+#### 1. Hub Server Setup
 
 ```bash
 cd hub
-npm i
-npm run dev   # starts on :4001
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Or start with automatic restart on changes
+npm run watch
 ```
 
-* ENV (dev defaults): `PORT=4001`, `TENANT_ID=t-demo`, `STORE_ID=s-001`
-* Endpoints: `/healthz`, Socket.io namespace `/` events `hello`, `events.append`, `events.bulk`.
+**Environment Variables** (create `.env` file):
 
-### 5.3 Web — Vite + React + **RxDB Dexie**
+```env
+PORT=4001
+HOST=0.0.0.0
+NODE_ENV=development
+TENANT_ID=demo
+STORE_ID=store_001
+```
 
-**Install** (Dexie storage replaces removed PouchDB storage):
+**Available Scripts:**
+
+- `npm run dev` - Start development server with ts-node
+- `npm run build` - Compile TypeScript to JavaScript
+- `npm run start` - Start production server
+- `npm run watch` - Start with file watching (auto-restart)
+
+#### 2. Web Client Setup
 
 ```bash
 cd web
-npm i
+
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
-# open http://localhost:5173
+
+# Build for production
+npm run build
 ```
 
-Set **HUB URL** to `http://<your-laptop-ip>:4001` and test new/park/re‑park/pay flows.
+**Available Scripts:**
 
-**RxDB init example**
+- `npm run dev` - Start Vite development server (http://localhost:5173)
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run typecheck` - Run TypeScript type checking
 
-```ts
-import { createRxDatabase } from 'rxdb';
-import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
-export async function initDB() {
-  const db = await createRxDatabase({ name: 'pos_web', storage: getRxStorageDexie() });
-  await db.addCollections({ /* orders schema */ });
-  return db as any;
-}
-```
+**Configuration:**
 
-### 5.4 Native — Expo + SQLite
+The web client automatically discovers the hub server via:
+1. mDNS discovery (when available)
+2. Fallback to `localhost:4001`
+3. Manual IP entry in settings
+
+#### 3. Native Client Setup
 
 ```bash
 cd native
-npm i
+
+# Install dependencies
+npm install
+
+# Start Expo development server
 npx expo start
+
+# Or run directly on specific platform
+npx expo run:ios      # iOS Simulator
+npx expo run:android  # Android Emulator
 ```
 
-Run on device/emulator. Enter **HUB URL** `http://<hub-ip>:4001`. Use built‑in buttons to create/park/re‑park/pay and observe cross‑device updates.
+**Development Options:**
 
-### 5.5 Local test checklist
+- **Expo Go App**: Scan QR code to run on physical device
+- **iOS Simulator**: Press `i` in Expo CLI
+- **Android Emulator**: Press `a` in Expo CLI
+- **Web**: Press `w` in Expo CLI (limited functionality)
 
-* Create order on Web → appears on Native within ~100ms.
-* Park on Native → Web updates instantly.
-* Kill the Hub, keep clients running → clients queue outbox; when Hub restarts, they flush and converge.
-* Turn off internet (keep LAN) → all flows still work.
+### Development Workflow
 
----
+#### 1. Starting All Services
 
-## 6) Production Setup — Raspberry Pi per Store (Recommended)
-
-### 6.1 Base image & packages
-
-* **OS**: Raspberry Pi OS 64‑bit Lite
-* Install: `avahi-daemon` (mDNS), Docker, Docker Compose plugin, `curl`, `jq`, `ca-certificates`.
-
-### 6.2 Directory & environment
-
-```
-/opt/pos-hub/
-  docker-compose.yml
-  .env                # TENANT_ID, STORE_ID, PORT, CLUSTER_PUBLIC_KEY_BASE64, CLOUD_BRIDGE_*
-  data/               # SQLite event log & cursors
-```
-
-**`.env` (per store)**
+Use the provided scripts to start all services simultaneously:
 
 ```bash
-TENANT_ID=t-abc
-STORE_ID=s-001
-PORT=4001
-CLUSTER_PUBLIC_KEY_BASE64=...    # for JWT verification offline
-CLOUD_BRIDGE_URL=https://api.example.com/events/ingest
-CLOUD_BRIDGE_TOKEN=...
+# Root directory script (if available)
+./start.sh
+
+# Or manually start each service:
+# Terminal 1: Hub
+cd hub && npm run dev
+
+# Terminal 2: Web
+cd web && npm run dev
+
+# Terminal 3: Native
+cd native && npx expo start
 ```
 
-### 6.3 mDNS advertisement
+#### 2. Testing Real-time Sync
 
-`/etc/avahi/services/poshub.service`
+1. **Start all services** as described above
+2. **Access web client** at http://localhost:5173
+3. **Open native client** on device/simulator
+4. **Login with demo credentials**:
+   - Email: `admin@restaurant.demo`
+   - Password: `password123`
+   - Tenant ID: `demo`
+
+5. **Test sync**:
+   - Create order on web → should appear on native instantly
+   - Add items on native → should update on web
+   - Test offline: disconnect internet, sync should still work over LAN
+
+#### 3. Debug Mode
+
+Enable debug logging in each client:
+
+**Web Client** (browser console):
+```javascript
+localStorage.setItem('debug', 'pos:*');
+```
+
+**Native Client** (in app settings):
+- Enable "Debug Mode" toggle
+- View logs in Expo CLI or React Native Debugger
+
+**Hub Server** (environment variable):
+```bash
+DEBUG=hub:* npm run dev
+```
+
+### Network Configuration
+
+#### Finding Your Development IP
+
+For testing across devices, you need your computer's IP address:
+
+**macOS/Linux:**
+```bash
+ifconfig | grep "inet " | grep -v 127.0.0.1
+```
+
+**Windows:**
+```cmd
+ipconfig | findstr "IPv4"
+```
+
+#### Updating Client Configuration
+
+**Native Client:**
+Update the IP in `/native/src/contexts/SyncContext.tsx`:
+
+```typescript
+const discoveredIP = '192.168.1.100'; // Your computer's IP
+```
+
+**Web Client:**
+The web client will auto-discover, but you can force an IP in the settings panel.
+
+### Troubleshooting Development Issues
+
+#### Common Problems
+
+1. **Port Already in Use**
+   ```bash
+   # Find process using port 4001
+   lsof -ti:4001
+   
+   # Kill the process
+   kill -9 <PID>
+   ```
+
+2. **mDNS Discovery Not Working**
+   - Ensure all devices are on the same WiFi network
+   - Check firewall settings
+   - Use manual IP entry as fallback
+
+3. **Expo Connection Issues**
+   ```bash
+   # Clear Expo cache
+   npx expo start --clear
+   
+   # Reset Metro bundler cache
+   npx expo start --reset-cache
+   ```
+
+4. **TypeScript Errors**
+   ```bash
+   # Check types in all projects
+   npm run typecheck  # In each project directory
+   ```
+
+5. **Socket.IO Connection Failures**
+   - Verify hub server is running
+   - Check console for connection errors
+   - Ensure correct IP/port configuration
+
+#### Debug Tools
+
+- **React Developer Tools**: Browser extension for React debugging
+- **Flipper**: Mobile app debugging (React Native)
+- **Postman**: Test hub server API endpoints
+- **Browser DevTools**: Network tab for WebSocket connections
+
+---
+## 5. Production Deployment
+
+### Overview
+
+Production deployment involves setting up a dedicated hub server (typically a Raspberry Pi) in each store location, with automatic discovery and robust offline operation.
+
+### Hardware Requirements
+
+#### Recommended Setup
+- **Hub Server**: Raspberry Pi 4 (4GB RAM) or Intel NUC
+- **Storage**: 32GB+ microSD card (Class 10) or SSD
+- **Network**: Wired Ethernet connection preferred
+- **Power**: Uninterruptible Power Supply (UPS) recommended
+
+#### Minimum Requirements
+- **Hub Server**: Raspberry Pi 3B+ (2GB RAM)
+- **Storage**: 16GB microSD card
+- **Network**: WiFi connection acceptable
+- **Power**: Standard power adapter
+
+### Raspberry Pi Setup
+
+#### 1. Operating System Installation
+
+```bash
+# Download Raspberry Pi OS Lite (64-bit)
+# Flash to microSD card using Raspberry Pi Imager
+
+# Enable SSH before first boot
+touch /boot/ssh
+
+# Configure WiFi (if needed)
+# Edit /boot/wpa_supplicant.conf
+```
+
+#### 2. Initial Configuration
+
+```bash
+# SSH into Pi
+ssh pi@raspberrypi.local
+
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install required packages
+sudo apt install -y curl git avahi-daemon docker.io docker-compose-plugin
+
+# Add pi user to docker group
+sudo usermod -aG docker pi
+
+# Enable services
+sudo systemctl enable avahi-daemon
+sudo systemctl enable docker
+```
+
+#### 3. mDNS Service Configuration
+
+Create `/etc/avahi/services/pos-hub.service`:
 
 ```xml
 <?xml version="1.0" standalone='no'?>
 <!DOCTYPE service-group SYSTEM "avahi-service.dtd">
 <service-group>
-  <name replace-wildcards="yes">POS Hub - %h (${STORE_ID}/${TENANT_ID})</name>
+  <name replace-wildcards="yes">CloudClever POS Hub - %h</name>
   <service>
-    <type>_poshub._tcp</type>
-    <port>${PORT}</port>
-    <txt-record>storeId=${STORE_ID}</txt-record>
-    <txt-record>tenantId=${TENANT_ID}</txt-record>
-    <txt-record>version=1</txt-record>
+    <type>_cloudclever-pos._tcp</type>
+    <port>4001</port>
+    <txt-record>version=1.0.0</txt-record>
+    <txt-record>tenantId=demo</txt-record>
+    <txt-record>storeId=store_001</txt-record>
   </service>
 </service-group>
 ```
 
-`systemctl restart avahi-daemon`
+```bash
+# Restart Avahi daemon
+sudo systemctl restart avahi-daemon
+```
+
+### Docker Deployment
+
+#### 1. Create Deployment Directory
+
+```bash
+sudo mkdir -p /opt/pos-hub
+cd /opt/pos-hub
+```
+
+#### 2. Environment Configuration
+
+Create `/opt/pos-hub/.env`:
+
+```env
+# Store Configuration
+TENANT_ID=your-tenant-id
+STORE_ID=your-store-id
+PORT=4001
+HOST=0.0.0.0
+
+# Security
+JWT_SECRET=your-secure-jwt-secret
+CLUSTER_PUBLIC_KEY_BASE64=your-public-key
+
+# Cloud Bridge (optional)
+CLOUD_BRIDGE_URL=https://api.yourcloud.com/events
+CLOUD_BRIDGE_TOKEN=your-api-token
+
+# Development
+NODE_ENV=production
+DEBUG=false
+```
+
+#### 3. Docker Compose Configuration
+
+Create `/opt/pos-hub/docker-compose.yml`:
+
+```yaml
+version: '3.8'
+
+services:
+  hub:
+    image: cloudclever/pos-hub:latest
+    container_name: pos-hub
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${PORT}:${PORT}"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT}/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  # Auto-updater (optional)
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --label-enable --cleanup --interval 3600
+    environment:
+      - WATCHTOWER_NOTIFICATIONS=slack
+      - WATCHTOWER_NOTIFICATION_SLACK_HOOK_URL=${SLACK_WEBHOOK_URL}
+```
+
+#### 4. Start Services
+
+```bash
+# Create data directory
+sudo mkdir -p /opt/pos-hub/data /opt/pos-hub/logs
+
+# Set permissions
+sudo chown -R pi:pi /opt/pos-hub
+
+# Start services
+docker compose up -d
+
+# Verify status
+docker compose ps
+docker compose logs hub
+```
+
+### Client Configuration
+
+#### Web Client Deployment
+
+For production web client deployment:
+
+```bash
+# Build optimized version
+cd web
+npm run build
+
+# Deploy to web server (Nginx, Apache, etc.)
+# Or use a CDN/static hosting service
+```
+
+**Nginx Configuration Example:**
+
+```nginx
+server {
+    listen 80;
+    server_name pos.yourstore.com;
+    
+    location / {
+        root /var/www/pos-web;
+        try_files $uri $uri/ /index.html;
+    }
+    
+    # Proxy hub requests
+    location /api/ {
+        proxy_pass http://hub.local:4001/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+#### Native Client Distribution
+
+**Option 1: Expo Application Services (EAS)**
+
+```bash
+cd native
+
+# Install EAS CLI
+npm install -g eas-cli
+
+# Configure build
+eas build:configure
+
+# Build for production
+eas build --platform all
+
+# Submit to app stores
+eas submit
+```
+
+**Option 2: Direct APK Distribution**
+
+```bash
+# Build standalone APK
+npx expo build:android --type apk
+
+# Distribute APK directly to devices
+```
+
+### Monitoring and Maintenance
+
+#### System Monitoring
+
+Create `/opt/pos-hub/monitor.sh`:
+
+```bash
+#!/bin/bash
+
+# Check hub service health
+if ! curl -f http://localhost:4001/api/health > /dev/null 2>&1; then
+    echo "Hub service unhealthy, restarting..."
+    docker compose restart hub
+fi
+
+# Check disk space
+DISK_USAGE=$(df /opt/pos-hub | tail -1 | awk '{print $5}' | sed 's/%//')
+if [ "$DISK_USAGE" -gt 80 ]; then
+    echo "Disk usage high: ${DISK_USAGE}%"
+    # Clean old logs
+    find /opt/pos-hub/logs -name "*.log" -mtime +7 -delete
+fi
+
+# Check memory usage
+MEMORY_USAGE=$(free | grep Mem | awk '{printf "%.0f", ($3/$2) * 100.0}')
+if [ "$MEMORY_USAGE" -gt 90 ]; then
+    echo "Memory usage high: ${MEMORY_USAGE}%"
+    docker compose restart hub
+fi
+```
+
+Add to crontab:
+
+```bash
+# Edit crontab
+crontab -e
+
+# Add monitoring script (run every 5 minutes)
+*/5 * * * * /opt/pos-hub/monitor.sh >> /opt/pos-hub/logs/monitor.log 2>&1
+```
+
+#### Log Management
+
+```bash
+# View real-time logs
+docker compose logs -f hub
+
+# Archive old logs
+logrotate /opt/pos-hub/logs/*.log
+
+# Send logs to cloud (when online)
+rsync -av /opt/pos-hub/logs/ user@cloud-server:/backups/store-001/
+```
+
+#### Backup Strategy
+
+```bash
+# Daily backup script
+#!/bin/bash
+DATE=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="/opt/pos-hub/backups"
+
+mkdir -p "$BACKUP_DIR"
+
+# Backup database
+cp /opt/pos-hub/data/events.sqlite "$BACKUP_DIR/events_$DATE.sqlite"
+
+# Backup configuration
+tar -czf "$BACKUP_DIR/config_$DATE.tar.gz" /opt/pos-hub/.env /opt/pos-hub/docker-compose.yml
+
+# Clean old backups (keep last 7 days)
+find "$BACKUP_DIR" -name "*.sqlite" -mtime +7 -delete
+find "$BACKUP_DIR" -name "*.tar.gz" -mtime +7 -delete
+```
+
+### Security Considerations
+
+#### Network Security
+
+- **Firewall Configuration**: Only open necessary ports (4001)
+- **VPN Access**: Use VPN for remote management
+- **Network Segmentation**: Isolate POS network from guest WiFi
+
+#### Application Security
+
+- **JWT Tokens**: Use strong secrets and short expiration times
+- **HTTPS**: Use TLS certificates for web clients
+- **Access Control**: Implement role-based permissions
+
+#### Physical Security
+
+- **Device Lock**: Secure Raspberry Pi in locked enclosure
+- **UPS**: Prevent data corruption from power loss
+- **Tamper Detection**: Monitor for unauthorized access
+
+---
 
 ### 6.4 Docker Compose (Hub + auto‑update)
 
