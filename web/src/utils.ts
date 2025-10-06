@@ -1,6 +1,6 @@
 // Utility functions for the web client
 
-import { v4 as uuidv4 } from "uuid";
+import { v4 as uuidv4, v7 as uuidv7 } from "uuid";
 import type { EventBase, Order, OrderItem } from "./types";
 
 // Lamport clock management
@@ -21,7 +21,13 @@ export function updateLamportClock(peerLamport: number): void {
 
 // ID generation
 export function generateEventId(): string {
-  return uuidv4();
+  // Use UUID v7 for better time-based ordering
+  try {
+    return uuidv7();
+  } catch {
+    // Fallback to UUID v4 if v7 is not available
+    return uuidv4();
+  }
 }
 
 export function generateOrderId(): string {
@@ -29,14 +35,7 @@ export function generateOrderId(): string {
 }
 
 export function generateDeviceId(): string {
-  const stored = localStorage.getItem("pos_device_id");
-  if (stored) {
-    return stored;
-  }
-
-  const deviceId = `web_${Math.random().toString(36).slice(2, 10)}`;
-  localStorage.setItem("pos_device_id", deviceId);
-  return deviceId;
+  return `device_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 // Event creation utilities
@@ -101,17 +100,19 @@ export function validateEmail(email: string): boolean {
   return emailRegex.test(email);
 }
 
-export function validateOrderItem(item: OrderItem): boolean {
-  return !!(item.id && item.name && item.price >= 0 && item.quantity > 0);
+export function validateTenantId(tenantId: string): boolean {
+  return (
+    /^[a-zA-Z0-9_-]+$/.test(tenantId) &&
+    tenantId.length >= 3 &&
+    tenantId.length <= 50
+  );
 }
 
-export function validateOrder(order: Partial<Order>): boolean {
-  return !!(
-    order.items &&
-    order.items.length > 0 &&
-    order.items.every(validateOrderItem) &&
-    order.total &&
-    order.total > 0
+export function validateStoreId(storeId: string): boolean {
+  return (
+    /^[a-zA-Z0-9_-]+$/.test(storeId) &&
+    storeId.length >= 3 &&
+    storeId.length <= 50
   );
 }
 
@@ -126,11 +127,18 @@ export function formatTime(date: string | Date): string {
   return d.toLocaleTimeString();
 }
 
-export function formatCurrency(amount: number): string {
+export function formatCurrency(
+  amount: number,
+  currency: string = "USD"
+): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency,
   }).format(amount);
+}
+
+export function isExpired(expiryDate: string): boolean {
+  return new Date(expiryDate) < new Date();
 }
 
 // Storage utilities
@@ -158,35 +166,6 @@ export function removeFromLocalStorage(key: string): void {
   } catch (error) {
     console.error("Failed to remove from localStorage:", error);
   }
-}
-
-// Network utilities
-export function getLocalIPAddress(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const pc = new RTCPeerConnection({
-      iceServers: [],
-    });
-
-    pc.createDataChannel("");
-    pc.createOffer().then((offer) => pc.setLocalDescription(offer));
-
-    pc.onicecandidate = (ice) => {
-      if (ice && ice.candidate && ice.candidate.candidate) {
-        const myIP = /([0-9]{1,3}(\.[0-9]{1,3}){3})/.exec(
-          ice.candidate.candidate
-        )?.[1];
-        if (myIP) {
-          resolve(myIP);
-          pc.close();
-        }
-      }
-    };
-
-    setTimeout(() => {
-      pc.close();
-      reject(new Error("Could not determine local IP"));
-    }, 1000);
-  });
 }
 
 // Async utilities
@@ -262,6 +241,13 @@ export function compareEvents(a: EventBase, b: EventBase): number {
   return a.clock.deviceId.localeCompare(b.clock.deviceId);
 }
 
+export function isEventOlderThan(
+  event: EventBase,
+  otherEvent: EventBase
+): boolean {
+  return compareEvents(event, otherEvent) < 0;
+}
+
 // Conflict resolution utilities
 export function resolveConflict<T extends { version: number; lamport: number }>(
   local: T,
@@ -280,6 +266,10 @@ export function resolveConflict<T extends { version: number; lamport: number }>(
 
 // Device detection
 export function getDeviceType(): "web" | "mobile" | "tablet" {
+  if (typeof window === "undefined") {
+    return "web";
+  }
+
   const userAgent = window.navigator.userAgent;
 
   if (
@@ -297,38 +287,29 @@ export function getDeviceType(): "web" | "mobile" | "tablet" {
 // Theme utilities
 export function getStoredTheme(): "light" | "dark" | "system" {
   return (
-    (localStorage.getItem("pos_theme") as "light" | "dark" | "system") ||
-    "system"
+    (loadFromLocalStorage("theme") as "light" | "dark" | "system") || "system"
   );
 }
 
 export function setStoredTheme(theme: "light" | "dark" | "system"): void {
-  localStorage.setItem("pos_theme", theme);
+  saveToLocalStorage("theme", theme);
 }
 
-export function applyTheme(theme: "light" | "dark" | "system"): void {
-  const root = document.documentElement;
-
-  if (theme === "system") {
-    const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-      .matches
+export function getSystemTheme(): "light" | "dark" {
+  if (typeof window !== "undefined" && window.matchMedia) {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
       ? "dark"
       : "light";
-    root.classList.toggle("dark", systemTheme === "dark");
-  } else {
-    root.classList.toggle("dark", theme === "dark");
   }
+  return "light";
 }
 
-// Category utilities for products
-export function getProductCategories(products: any[]): string[] {
-  const categories = new Set<string>();
-  products.forEach((product) => {
-    if (product.category) {
-      categories.add(product.category);
-    }
-  });
-  return Array.from(categories).sort();
+export function getEffectiveTheme(): "light" | "dark" {
+  const stored = getStoredTheme();
+  if (stored === "system") {
+    return getSystemTheme();
+  }
+  return stored;
 }
 
 // Error handling
@@ -350,8 +331,144 @@ export class PosError extends Error {
 export const ErrorCodes = {
   VALIDATION_ERROR: "VALIDATION_ERROR",
   AUTHENTICATION_FAILED: "AUTHENTICATION_FAILED",
-  NETWORK_ERROR: "NETWORK_ERROR",
+  AUTHORIZATION_FAILED: "AUTHORIZATION_FAILED",
+  TENANT_NOT_FOUND: "TENANT_NOT_FOUND",
+  STORE_NOT_FOUND: "STORE_NOT_FOUND",
+  ORDER_NOT_FOUND: "ORDER_NOT_FOUND",
   SYNC_ERROR: "SYNC_ERROR",
+  NETWORK_ERROR: "NETWORK_ERROR",
   DATABASE_ERROR: "DATABASE_ERROR",
   CONFLICT_ERROR: "CONFLICT_ERROR",
 } as const;
+
+export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
+
+// Web-specific utilities
+export function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  delay: number
+): (...args: Parameters<T>) => void {
+  let timeoutId: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+}
+
+export function throttle<T extends (...args: any[]) => any>(
+  func: T,
+  limit: number
+): (...args: Parameters<T>) => void {
+  let inThrottle: boolean;
+  return (...args: Parameters<T>) => {
+    if (!inThrottle) {
+      func(...args);
+      inThrottle = true;
+      setTimeout(() => (inThrottle = false), limit);
+    }
+  };
+}
+
+// Cart utilities
+export function addToCart(
+  cart: OrderItem[],
+  product: { sku: string; name: string; price: number },
+  quantity: number = 1
+): OrderItem[] {
+  const existingItem = cart.find((item) => item.sku === product.sku);
+
+  if (existingItem) {
+    return cart.map((item) =>
+      item.sku === product.sku
+        ? { ...item, quantity: item.quantity + quantity }
+        : item
+    );
+  } else {
+    return [
+      ...cart,
+      {
+        id: `item_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        sku: product.sku,
+        name: product.name,
+        price: product.price,
+        quantity,
+        modifiers: [],
+      },
+    ];
+  }
+}
+
+export function removeFromCart(cart: OrderItem[], itemId: string): OrderItem[] {
+  return cart.filter((item) => item.id !== itemId);
+}
+
+export function updateCartItemQuantity(
+  cart: OrderItem[],
+  itemId: string,
+  quantity: number
+): OrderItem[] {
+  if (quantity <= 0) {
+    return removeFromCart(cart, itemId);
+  }
+
+  return cart.map((item) =>
+    item.id === itemId ? { ...item, quantity } : item
+  );
+}
+
+// Network status
+export function getNetworkStatus(): {
+  online: boolean;
+  type?: string;
+} {
+  if (typeof navigator !== "undefined" && "onLine" in navigator) {
+    return {
+      online: navigator.onLine,
+      type: (navigator as any).connection?.effectiveType,
+    };
+  }
+  return { online: true };
+}
+
+// Print utilities
+export function printReceipt(order: Order): void {
+  const printContent = `
+    <div style="font-family: monospace; max-width: 300px;">
+      <h2 style="text-align: center;">Receipt</h2>
+      <p>Order #: ${order.orderId}</p>
+      <p>Date: ${formatDateTime(order.createdAt)}</p>
+      <hr>
+      ${order.items
+        .map(
+          (item) => `
+        <div style="display: flex; justify-content: space-between;">
+          <span>${item.name} x${item.quantity}</span>
+          <span>${formatCurrency(item.price * item.quantity)}</span>
+        </div>
+      `
+        )
+        .join("")}
+      <hr>
+      <div style="display: flex; justify-content: space-between;">
+        <strong>Subtotal:</strong>
+        <strong>${formatCurrency(order.subtotal)}</strong>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <strong>Tax:</strong>
+        <strong>${formatCurrency(order.tax)}</strong>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <strong>Total:</strong>
+        <strong>${formatCurrency(order.total)}</strong>
+      </div>
+    </div>
+  `;
+
+  const printWindow = window.open("", "_blank");
+  if (printWindow) {
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.print();
+    printWindow.close();
+  }
+}
