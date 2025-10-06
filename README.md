@@ -57,6 +57,17 @@ offline-pos/
 
 ## Quick Start
 
+
+**To start all services**
+```./start.sh
+```
+
+**To stop all services**
+```
+./stop.sh
+```
+
+
 1. **Start the Hub Server**
    ```bash
    cd hub

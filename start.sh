@@ -80,7 +80,7 @@ start_service() {
     local pid=$!
     
     echo "🔄 $name started with PID: $pid"
-    echo $pid > "logs/${name}.pid"
+    echo $pid > "../logs/${name}.pid"
     
     # Wait a moment for the service to start
     sleep 3
@@ -121,7 +121,7 @@ nohup npx expo start > "../logs/native-app.log" 2>&1 &
 native_pid=$!
 
 echo "🔄 Native app started with PID: $native_pid"
-echo $native_pid > "logs/native-app.pid"
+echo $native_pid > "../logs/native-app.pid"
 
 cd ..
 

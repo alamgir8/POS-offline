@@ -1,0 +1,11 @@
+Starting project at /Users/alamgirhossain/Themeforest/offline-pos/native
+Using src/app as the root directory for Expo Router.
+Starting Metro Bundler
+Recrawled this watch 47 times, most recently because:
+MustScanSubDirs UserDroppedTo resolve, please review the information on
+https://facebook.github.io/watchman/docs/troubleshooting.html#recrawl
+To clear this warning, run:
+`watchman watch-del '/Users/alamgirhossain/Themeforest/offline-pos/native' ; watchman watch-project '/Users/alamgirhossain/Themeforest/offline-pos/native'`
+
+Waiting on http://localhost:8081
+Logs for your project will appear below.

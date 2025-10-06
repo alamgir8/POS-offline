@@ -1,0 +1,28 @@
+
+> offline-pos-hub@1.0.0 dev
+> NODE_OPTIONS=--experimental-specifier-resolution=node node --loader ts-node/esm src/index.ts
+
+(node:25640) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("ts-node/esm", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25640) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Demo users initialized:
+- Restaurant Admin: admin@restaurant.demo / password123
+- Retail Admin: admin@retail.demo / password123
+- Cashier: cashier@restaurant.demo / cashier123
+🚀 Offline POS Hub Server started
+📡 Listening on 0.0.0.0:4001
+🌐 WebSocket server ready for LAN connections
+🔐 Demo authentication enabled
+📊 REST API available at http://0.0.0.0:4001/api
+📻 mDNS service advertised as 'cloudclever-pos' on port 4001
+🔍 Devices can auto-discover this hub on the LAN
+
+Demo Accounts:
+  Restaurant: admin@restaurant.demo / password123
+  Retail: admin@retail.demo / password123
+  Cashier: cashier@restaurant.demo / cashier123
+
+🛑 Gracefully shutting down hub server...
+✅ Hub server closed
