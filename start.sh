@@ -1,61 +1,203 @@
 #!/bin/bash
 
-# Offline POS System Startup S[1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004hcclear[?2004l
-[3J[H[2J[1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004hggit add .[?2004l
-[1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004hggit commit -m"feat(v-19  1): added rasb pberry pi configureation      ation doc"[?2004l
-[main 4d7ac48] feat(v-1): added raspberry pi configuration doc
- 2 files changed, 16 insertions(+), 12 deletions(-)
- create mode 100644 RASPBERRY_PI.md
-[1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004hggit push[?2004l
-Enumerating objects: 6, done.
-Counting objects:  16% (1/6)Counting objects:  33% (2/6)Counting objects:  50% (3/6)Counting objects:  66% (4/6)Counting objects:  83% (5/6)Counting objects: 100% (6/6)Counting objects: 100% (6/6), done.
-Delta compression using up to 12 threads
-Compressing objects:  25% (1/4)Compressing objects:  50% (2/4)Compressing objects:  75% (3/4)Compressing objects: 100% (4/4)Compressing objects: 100% (4/4), done.
-Writing objects:  25% (1/4)Writing objects:  50% (2/4)Writing objects:  75% (3/4)Writing objects: 100% (4/4)Writing objects: 100% (4/4), 638 bytes | 638.00 KiB/s, done.
-Total 4 (delta 2), reused 0 (delta 0), pack-reused 0 (from 0)
-remote: Resolving deltas:   0% (0/2)[Kremote: Resolving deltas:  50% (1/2)[Kremote: Resolving deltas: 100% (2/2)[Kremote: Resolving deltas: 100% (2/2), completed with 2 local objects.[K
-remote: 
-remote: GitHub found 2 vulnerabilities on alamgir8/POS-offline's default branch (1 high, 1 moderate). To find out more, visit:[K
-remote:      https://github.com/alamgir8/POS-offline/security/dependabot[K
-remote: 
-To https://github.com/alamgir8/POS-offline.git
-   1feb2b1..4d7ac48  main -> main
-[1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004hgit pushcommit -m"feat(v-1): added raspberry pi configuration doc"[58Dadd .                                                     [53D[?2004l
-[1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004hgit add .push commit -m"feat(v-1): added raspberry pi configuration doc"[?2004l
-[main 65c6459] feat(v-1): added raspberry pi configuration doc
- 2 files changed, 315 insertions(+), 91 deletions(-)
-[1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004hgit commit -m"feat(v-1): added raspberry pi configuration doc"[58Dadd .                                                     [53Dpush [?2004l
-Enumerating objects: 7, done.
-Counting objects:  14% (1/7)Counting objects:  28% (2/7)Counting objects:  42% (3/7)Counting objects:  57% (4/7)Counting objects:  71% (5/7)Counting objects:  85% (6/7)Counting objects: 100% (7/7)Counting objects: 100% (7/7), done.
-Delta compression using up to 12 threads
-Compressing objects:  25% (1/4)Compressing objects:  50% (2/4)Compressing objects:  75% (3/4)Compressing objects: 100% (4/4)Compressing objects: 100% (4/4), done.
-Writing objects:  25% (1/4)Writing objects:  50% (2/4)Writing objects:  75% (3/4)Writing objects: 100% (4/4)Writing objects: 100% (4/4), 4.68 KiB | 4.68 MiB/s, done.
-Total 4 (delta 1), reused 0 (delta 0), pack-reused 0 (from 0)
-remote: Resolving deltas:   0% (0/1)[Kremote: Resolving deltas: 100% (1/1)[Kremote: Resolving deltas: 100% (1/1), completed with 1 local object.[K
-remote: 
-remote: GitHub found 2 vulnerabilities on alamgir8/POS-offline's default branch (1 high, 1 moderate). To find out more, visit:[K
-remote:      https://github.com/alamgir8/POS-offline/security/dependabot[K
-remote: 
-To https://github.com/alamgir8/POS-offline.git
-   4d7ac48..65c6459  main -> main
-[1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004hcclear[?2004l
-[3J[H[2J[1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004hnnpm ru    n  ggit add .[?2004l
-[1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004hggit commit -m"feat(v-1): updated"[?2004l
-[main e275fa0] feat(v-1): updated
- 2 files changed, 20 insertions(+), 437 deletions(-)
- delete mode 100644 native/src/contexts/SyncContext_new.tsx
-[1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004hggit push[?2004l
-Enumerating objects: 11, done.
-Counting objects:   9% (1/11)Counting objects:  18% (2/11)Counting objects:  27% (3/11)Counting objects:  36% (4/11)Counting objects:  45% (5/11)Counting objects:  54% (6/11)Counting objects:  63% (7/11)Counting objects:  72% (8/11)Counting objects:  81% (9/11)Counting objects:  90% (10/11)Counting objects: 100% (11/11)Counting objects: 100% (11/11), done.
-Delta compression using up to 12 threads
-Compressing objects:  16% (1/6)Compressing objects:  33% (2/6)Compressing objects:  50% (3/6)Compressing objects:  66% (4/6)Compressing objects:  83% (5/6)Compressing objects: 100% (6/6)Compressing objects: 100% (6/6), done.
-Writing objects:  16% (1/6)Writing objects:  33% (2/6)Writing objects:  50% (3/6)Writing objects:  66% (4/6)Writing objects:  83% (5/6)Writing objects: 100% (6/6)Writing objects: 100% (6/6), 818 bytes | 818.00 KiB/s, done.
-Total 6 (delta 5), reused 0 (delta 0), pack-reused 0 (from 0)
-remote: Resolving deltas:   0% (0/5)[Kremote: Resolving deltas:  20% (1/5)[Kremote: Resolving deltas:  40% (2/5)[Kremote: Resolving deltas:  60% (3/5)[Kremote: Resolving deltas:  80% (4/5)[Kremote: Resolving deltas: 100% (5/5)[Kremote: Resolving deltas: 100% (5/5), completed with 5 local objects.[K
-remote: 
-remote: GitHub found 2 vulnerabilities on alamgir8/POS-offline's default branch (1 high, 1 moderate). To find out more, visit:[K
-remote:      https://github.com/alamgir8/POS-offline/security/dependabot[K
-remote: 
-To https://github.com/alamgir8/POS-offline.git
-   65c6459..e275fa0  main -> main
-[1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004h
+# Offline POS System Startup Script
+# This script starts the Hub Server, Web Client, and Native App development servers
+
+echo "🚀 Starting Offline POS System..."
+
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Function to check if a port is in use
+port_in_use() {
+    lsof -i:$1 >/dev/null 2>&1
+}
+
+# Function to kill processes on specific ports
+kill_port() {
+    local port=$1
+    local pids=$(lsof -ti:$port)
+    if [ ! -z "$pids" ]; then
+        echo "🔄 Killing existing processes on port $port..."
+        kill -9 $pids 2>/dev/null
+        sleep 1
+    fi
+}
+
+# Check prerequisites
+echo "🔍 Checking prerequisites..."
+
+if ! command_exists node; then
+    echo "❌ Node.js is not installed. Please install Node.js first."
+    exit 1
+fi
+
+if ! command_exists npm; then
+    echo "❌ npm is not installed. Please install npm first."
+    exit 1
+fi
+
+if ! command_exists npx; then
+    echo "❌ npx is not installed. Please install npx first."
+    exit 1
+fi
+
+echo "✅ Prerequisites check passed"
+
+# Kill any existing processes on our ports
+kill_port 4001  # Hub server
+kill_port 5173  # Web client
+kill_port 8081  # Expo dev server
+
+# Create log directory
+mkdir -p logs
+
+# Function to start a service in background
+start_service() {
+    local name=$1
+    local directory=$2
+    local command=$3
+    local port=$4
+    local log_file="logs/${name}.log"
+    
+    echo "🔧 Starting $name..."
+    echo "🏃 Starting $name on port $port..."
+    
+    cd "$directory"
+    
+    # Check if package.json exists and install dependencies if needed
+    if [ -f "package.json" ]; then
+        if [ ! -d "node_modules" ]; then
+            echo "📦 Installing dependencies for $name..."
+            npm install
+        fi
+    fi
+    
+    # Start the service in background
+    nohup $command > "../$log_file" 2>&1 &
+    local pid=$!
+    
+    echo "🔄 $name started with PID: $pid"
+    echo $pid > "logs/${name}.pid"
+    
+    # Wait a moment for the service to start
+    sleep 3
+    
+    # Check if the service is still running
+    if kill -0 $pid 2>/dev/null; then
+        echo "✅ $name is running successfully"
+    else
+        echo "❌ $name failed to start. Check logs/$name.log for details."
+        exit 1
+    fi
+    
+    cd ..
+}
+
+# Start Hub Server
+start_service "hub-server" "hub" "npm run dev" "4001"
+
+# Start Web Client
+start_service "web-client" "web" "npm run dev" "5173"
+
+# Start Native App (Expo)
+echo "🔧 Starting Native App..."
+echo "🏃 Starting native app on port 8081..."
+
+cd native
+
+# Check if package.json exists and install dependencies if needed
+if [ -f "package.json" ]; then
+    if [ ! -d "node_modules" ]; then
+        echo "📦 Installing dependencies for native app..."
+        npm install
+    fi
+fi
+
+# Start Expo in background
+nohup npx expo start > "../logs/native-app.log" 2>&1 &
+native_pid=$!
+
+echo "🔄 Native app started with PID: $native_pid"
+echo $native_pid > "logs/native-app.pid"
+
+cd ..
+
+# Wait for all services to fully start
+echo "⏳ Waiting for all services to start..."
+sleep 10
+
+# Display status
+echo ""
+echo "🎉 All services started successfully!"
+echo ""
+echo "📊 Service Status:"
+echo "==================="
+
+# Check Hub Server
+if port_in_use 4001; then
+    echo "✅ Hub Server: Running on http://localhost:4001"
+else
+    echo "❌ Hub Server: Failed to start"
+fi
+
+# Check Web Client
+if port_in_use 5173; then
+    echo "✅ Web Client: Running on http://localhost:5173"
+else
+    echo "❌ Web Client: Failed to start"
+fi
+
+# Check Expo Dev Server
+if port_in_use 8081; then
+    echo "✅ Native App: Expo dev server running on http://localhost:8081"
+else
+    echo "❌ Native App: Failed to start"
+fi
+
+echo ""
+echo "📱 Usage Instructions:"
+echo "======================"
+echo "1. Open http://localhost:5173 in your browser for the Web Dashboard"
+echo "2. Use Expo Go app to scan the QR code for the mobile app"
+echo "3. Check logs/ directory for detailed service logs"
+echo ""
+echo "🛑 To stop all services, run: ./stop.sh"
+echo ""
+echo "📋 Process IDs saved in logs/ directory"
+echo "   - Hub Server PID: $(cat logs/hub-server.pid 2>/dev/null || echo 'Not found')"
+echo "   - Web Client PID: $(cat logs/web-client.pid 2>/dev/null || echo 'Not found')"
+echo "   - Native App PID: $(cat logs/native-app.pid 2>/dev/null || echo 'Not found')"
+
+echo ""
+echo "🔍 Real-time logs:"
+echo "=================="
+echo "📝 Hub Server: tail -f logs/hub-server.log"
+echo "📝 Web Client: tail -f logs/web-client.log"  
+echo "📝 Native App: tail -f logs/native-app.log"
+
+# Keep the script running to show live status
+echo ""
+echo "💡 Press Ctrl+C to exit this status monitor (services will keep running)"
+echo "   Use ./stop.sh to actually stop all services"
+echo ""
+
+# Monitor services (optional - can be interrupted)
+while true; do
+    sleep 30
+    echo "⏰ $(date): Services status check..."
+    
+    if ! port_in_use 4001; then
+        echo "⚠️  Hub Server appears to be down!"
+    fi
+    
+    if ! port_in_use 5173; then
+        echo "⚠️  Web Client appears to be down!"
+    fi
+    
+    if ! port_in_use 8081; then
+        echo "⚠️  Native App appears to be down!"
+    fi
+done
