@@ -18,7 +18,7 @@ import { useCart } from '../../contexts/CartContext';
 import { useSync } from '../../contexts/SyncContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MenuItem } from '../../types';
+import { MenuItem } from '../../types/index';
 import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');

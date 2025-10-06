@@ -7,7 +7,7 @@ import React, {
   ReactNode,
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { MenuItem, Order, OrderItem } from '../types';
+import { MenuItem, Order, OrderItem } from '../types/index';
 import { useSync } from './SyncContext';
 
 interface DataContextType {
