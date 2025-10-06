@@ -39,4 +39,23 @@ remote:
 To https://github.com/alamgir8/POS-offline.git
    4d7ac48..65c6459  main -> main
 [1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004hcclear[?2004l
-[3J[H[2J[1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004hnnpm ru    n  ggit add
+[3J[H[2J[1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004hnnpm ru    n  ggit add .[?2004l
+[1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004hggit commit -m"feat(v-1): updated"[?2004l
+[main e275fa0] feat(v-1): updated
+ 2 files changed, 20 insertions(+), 437 deletions(-)
+ delete mode 100644 native/src/contexts/SyncContext_new.tsx
+[1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004hggit push[?2004l
+Enumerating objects: 11, done.
+Counting objects:   9% (1/11)Counting objects:  18% (2/11)Counting objects:  27% (3/11)Counting objects:  36% (4/11)Counting objects:  45% (5/11)Counting objects:  54% (6/11)Counting objects:  63% (7/11)Counting objects:  72% (8/11)Counting objects:  81% (9/11)Counting objects:  90% (10/11)Counting objects: 100% (11/11)Counting objects: 100% (11/11), done.
+Delta compression using up to 12 threads
+Compressing objects:  16% (1/6)Compressing objects:  33% (2/6)Compressing objects:  50% (3/6)Compressing objects:  66% (4/6)Compressing objects:  83% (5/6)Compressing objects: 100% (6/6)Compressing objects: 100% (6/6), done.
+Writing objects:  16% (1/6)Writing objects:  33% (2/6)Writing objects:  50% (3/6)Writing objects:  66% (4/6)Writing objects:  83% (5/6)Writing objects: 100% (6/6)Writing objects: 100% (6/6), 818 bytes | 818.00 KiB/s, done.
+Total 6 (delta 5), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas:   0% (0/5)[Kremote: Resolving deltas:  20% (1/5)[Kremote: Resolving deltas:  40% (2/5)[Kremote: Resolving deltas:  60% (3/5)[Kremote: Resolving deltas:  80% (4/5)[Kremote: Resolving deltas: 100% (5/5)[Kremote: Resolving deltas: 100% (5/5), completed with 5 local objects.[K
+remote: 
+remote: GitHub found 2 vulnerabilities on alamgir8/POS-offline's default branch (1 high, 1 moderate). To find out more, visit:[K
+remote:      https://github.com/alamgir8/POS-offline/security/dependabot[K
+remote: 
+To https://github.com/alamgir8/POS-offline.git
+   65c6459..e275fa0  main -> main
+[1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004h
