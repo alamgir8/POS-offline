@@ -1,17 +1,6 @@
 #!/bin/bash
 
-# Offline POS System Startup Script
-# This script starts all components of the offline POS system
-
-echo "🚀 Starting Offline POS System..."
-echo ""
-
-# Function to check if a command exists
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
-
-# Check prerequisites
+# Offline POS System Startup S[1m[7m%[27m[1m[0m                                                                                                                               [0m[27m[24m[Jalamgirhossain@Alamgirs-MacBook-Pro offline-pos % [K[?2004hrequisites
 echo "🔍 Checking prerequisites..."
 
 if ! command_exists node; then
