@@ -72,6 +72,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const reconnectTimeoutRef = useRef<any>(null);
   const offlineQueueRef = useRef<EventBase[]>([]);
 
+  // Android-specific refs for preventing infinite loops
+  const retryCountRef = useRef<number>(0);
+  const maxRetries = 10;
+  const lastConnectionAttemptRef = useRef<number>(0);
+  const currentNetworkTypeRef = useRef<string | null>(null);
+
   // Callback refs for real-time updates
   const orderReceivedCallback = useRef<((order: Order) => void) | null>(null);
   const orderStatusUpdateCallback = useRef<
@@ -108,6 +114,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Initialize network type tracking
+    NetInfo.fetch().then((state) => {
+      currentNetworkTypeRef.current = state.type;
+      console.log('🌐 Initial network type:', state.type);
+    });
+
     // Try to load saved server IP or auto-discover first
     loadServerIP();
     // Also load any pending offline data
@@ -125,6 +137,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       });
       console.log('🌐 Setting isOnline to:', connected);
       setIsOnline(connected);
+
+      // Track network type changes for Android
+      if (state.type !== currentNetworkTypeRef.current) {
+        console.log(
+          `🌐 Network type changed from ${currentNetworkTypeRef.current} to ${state.type}`
+        );
+        currentNetworkTypeRef.current = state.type;
+        // Reset retry count when network changes
+        retryCountRef.current = 0;
+      }
 
       // For LAN sync, we need to differentiate between no network at all vs no internet
       // WiFi/Ethernet connection is enough for LAN sync even without internet
@@ -160,12 +182,17 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       unsubscribe();
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
       if (socketRef.current) {
         console.log('🔌 Closing Socket.IO connection on unmount');
         socketRef.current.disconnect();
         socketRef.current = null;
       }
+      // Android-specific cleanup
+      retryCountRef.current = 0;
+      lastConnectionAttemptRef.current = 0;
+      setIsConnecting(false);
     };
   }, [serverIP, user]); // Re-run when serverIP or user changes
 
@@ -238,7 +265,24 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   const connectToServer = async (ip?: string): Promise<boolean> => {
     const targetIP = ip || serverIP || 'localhost';
-    console.log('🔌 [CONNECT] Connection attempt details:', {
+
+    // Android-specific: Smart debounce to prevent rapid successive calls
+    const now = Date.now();
+    const timeSinceLastAttempt = now - lastConnectionAttemptRef.current;
+
+    // Only debounce if we're already connecting or just attempted very recently (< 1 second)
+    if (
+      isConnecting ||
+      (timeSinceLastAttempt < 1000 && timeSinceLastAttempt > 0)
+    ) {
+      console.log(
+        '� Connection attempt too soon or already connecting, debouncing...'
+      );
+      return false;
+    }
+    lastConnectionAttemptRef.current = now;
+
+    console.log('�🔌 [CONNECT] Connection attempt details:', {
       targetIP,
       providedIP: ip,
       serverIP,
@@ -247,6 +291,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       isConnectedToServer,
       hasUser: !!user,
       userTenantId: user?.tenantId,
+      retryCount: retryCountRef.current,
     });
 
     if (!isOnline || isConnecting || isConnectedToServer || !user) {
@@ -277,17 +322,20 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       const socket = io(socketUrl, {
         transports: ['websocket', 'polling'],
         autoConnect: true,
-        reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 1000,
+        reconnection: false, // Disable automatic reconnection to prevent loops
+        timeout: 15000, // Increased timeout for Android
+        forceNew: true, // Force new connection each time
+        upgrade: true,
+        rememberUpgrade: false,
       });
 
       return new Promise((resolve) => {
         const timeout = setTimeout(() => {
+          console.log('⏰ Connection timeout reached');
           socket.disconnect();
           setIsConnecting(false);
           resolve(false);
-        }, 10000); // 10 second timeout
+        }, 15000); // Longer timeout for Android
 
         socket.on('connect', () => {
           clearTimeout(timeout);
@@ -296,6 +344,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
           setIsConnectedToServer(true);
           setIsConnecting(false);
           setServerIP(targetIP);
+
+          // Reset retry count on successful connection
+          retryCountRef.current = 0;
+
+          // Clear any pending reconnect timeout
+          if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+          }
 
           // Save successful IP
           AsyncStorage.setItem('serverIP', targetIP);
@@ -322,21 +379,75 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         socket.on('connect_error', (error: any) => {
           clearTimeout(timeout);
           console.error('❌ Connection error:', error);
-          console.log('🔄 Will retry connection automatically...');
           setIsConnecting(false);
 
-          // Set up automatic retry for LAN connections
-          if (!reconnectTimeoutRef.current) {
-            reconnectTimeoutRef.current = setTimeout(() => {
-              reconnectTimeoutRef.current = null;
-              if (serverIP && user && !isConnectedToServer) {
-                console.log('🔄 Retrying connection after error...');
-                connectToServer(serverIP);
-              }
-            }, 5000); // Retry after 5 seconds
+          // Increment retry count
+          retryCountRef.current += 1;
+          console.log(
+            `🔄 Connection attempt ${retryCountRef.current}/${maxRetries} failed`
+          );
+
+          // Prevent multiple rapid retries (Android-specific fix)
+          if (reconnectTimeoutRef.current) {
+            console.log('🔄 Retry already scheduled, skipping duplicate retry');
+            resolve(false);
+            return;
           }
 
-          resolve(false);
+          // Check if we should retry
+          if (retryCountRef.current < maxRetries) {
+            console.log('🔄 Will retry connection automatically...');
+
+            // Set up automatic retry with exponential backoff
+            const backoffDelay = Math.min(
+              1000 * Math.pow(2, retryCountRef.current - 1),
+              30000
+            );
+            console.log(`⏰ Retrying in ${backoffDelay}ms...`);
+
+            reconnectTimeoutRef.current = setTimeout(async () => {
+              reconnectTimeoutRef.current = null;
+
+              // Check if network type changed (Android network changes are more frequent)
+              const netInfo = await NetInfo.fetch();
+              if (netInfo.type !== currentNetworkTypeRef.current) {
+                console.log(
+                  `🌐 Network changed from ${currentNetworkTypeRef.current} to ${netInfo.type}, discovering new server...`
+                );
+                currentNetworkTypeRef.current = netInfo.type;
+                retryCountRef.current = 0; // Reset retries for new network
+                console.log('🔍 Will rediscover server IP for new network...');
+                resolve(false);
+                return;
+              }
+
+              // Double-check we're not already connected (Android race condition fix)
+              if (isConnectedToServer || isConnecting) {
+                console.log(
+                  '🔄 Already connected or connecting, skipping retry'
+                );
+                resolve(false);
+                return;
+              }
+
+              if (targetIP && user) {
+                console.log('🔄 Retrying connection after error...');
+                const success = await connectToServer(targetIP);
+                resolve(success);
+              } else {
+                resolve(false);
+              }
+            }, backoffDelay);
+          } else {
+            console.log(
+              '❌ Maximum retry attempts reached, stopping automatic retries'
+            );
+            console.log(
+              '💡 Try switching networks or manually refresh the connection'
+            );
+            retryCountRef.current = 0; // Reset for future attempts
+            resolve(false);
+          }
         });
 
         socket.on('disconnect', (reason: string) => {
