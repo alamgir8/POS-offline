@@ -2,10 +2,10 @@
 > offline-pos-hub@1.0.0 dev
 > NODE_OPTIONS=--experimental-specifier-resolution=node node --loader ts-node/esm src/index.ts
 
-(node:25640) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+(node:61117) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
 --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("ts-node/esm", pathToFileURL("./"));'
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:25640) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(node:61117) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 Demo users initialized:
 - Restaurant Admin: admin@restaurant.demo / password123
@@ -23,6 +23,17 @@ Demo Accounts:
   Restaurant: admin@restaurant.demo / password123
   Retail: admin@retail.demo / password123
   Cashier: cashier@restaurant.demo / cashier123
-
-🛑 Gracefully shutting down hub server...
-✅ Hub server closed
+Client connected: mfXOUMEnMEXhm8kVAAAB
+Hello from device: web_85indsfn (tenant: restaurant_demo, store: store_001)
+Event stored: order.created for order-1765454956758-03t08tdi7 (Lamport: 1765454930655)
+Event broadcasted: order.created from web_85indsfn to room restaurant_demo:store_001
+Event stored: kds.ticket.created for kds-1765454956758-o93yq9f4o (Lamport: 1765454930655)
+Event broadcasted: kds.ticket.created from web_85indsfn to room restaurant_demo:store_001
+Event stored: order.updated for order-1765454956758-03t08tdi7 (Lamport: 1765454930661)
+Event broadcasted: order.updated from web_85indsfn to room restaurant_demo:store_001
+Event stored: order.updated for order-1765454956758-03t08tdi7 (Lamport: 1765454930665)
+Event broadcasted: order.updated from web_85indsfn to room restaurant_demo:store_001
+Event stored: order.updated for order-1765454956758-03t08tdi7 (Lamport: 1765454930669)
+Event broadcasted: order.updated from web_85indsfn to room restaurant_demo:store_001
+Event stored: kds.ticket.completed for kds-1765454956758-o93yq9f4o (Lamport: 1765454930673)
+Event broadcasted: kds.ticket.completed from web_85indsfn to room restaurant_demo:store_001

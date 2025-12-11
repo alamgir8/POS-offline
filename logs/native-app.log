@@ -1,11 +1,137 @@
 Starting project at /Users/alamgirhossain/Themeforest/offline-pos/native
 Using src/app as the root directory for Expo Router.
 Starting Metro Bundler
-Recrawled this watch 47 times, most recently because:
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Recrawled this watch 5 times, most recently because:
 MustScanSubDirs UserDroppedTo resolve, please review the information on
 https://facebook.github.io/watchman/docs/troubleshooting.html#recrawl
 To clear this warning, run:
-`watchman watch-del '/Users/alamgirhossain/Themeforest/offline-pos/native' ; watchman watch-project '/Users/alamgirhossain/Themeforest/offline-pos/native'`
+`watchman watch-del '/Users/alamgirhossain/Themeforest/offline-pos' ; watchman watch-project '/Users/alamgirhossain/Themeforest/offline-pos'`
 
-Waiting on http://localhost:8081
-Logs for your project will appear below.
+Unable to resolve asset "./assets/images/icon.png" from "icon" in your app.json or app.config.js
+iOS node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+iOS Bundled 475ms node_modules/expo-router/entry.js (1419 modules)
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/th3rdwave/react-native-safe-area-context
+ LOG  🚀 Loading initial data...
+ LOG  🛒 Loading products...
+ LOG  🔗 Registering real-time sync callbacks...
+ LOG  ✅ Real-time sync callbacks registered
+ LOG  📦 Raw stored products: [{"id":"1","name":"Burger","price":12.99,"category":"food","available":true},{"id":"2","name":"Pizza","price":18.99,"category":"food","available":true},{"id":"3","name":"Pasta","price":14.99,"category":"food","available":true},{"id":"4","name":"Salad","price":9.99,"category":"food","available":true},{"id":"5","name":"Sandwich","price":8.99,"category":"food","available":true},{"id":"6","name":"Steak","price":24.99,"category":"food","available":true},{"id":"7","name":"Coffee","price":3.99,"category":"other","available":true},{"id":"8","name":"Tea","price":2.99,"category":"other","available":true},{"id":"9","name":"Soda","price":2.49,"category":"other","available":true},{"id":"10","name":"Beer","price":5.99,"category":"other","available":true},{"id":"11","name":"Wine","price":8.99,"category":"other","available":true},{"id":"12","name":"Juice","price":3.49,"category":"other","available":true}]
+ LOG  📦 Loaded products from storage: 12 items
+ LOG  ✅ Initial data loading complete
+ LOG  🔌 Connecting to hub server: http://192.168.0.143:4001
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 12 items for category: all
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: food
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: food
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 12 items for category: all
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 12 items for category: all
+ ERROR  ❌ Connection error: [Error: timeout] 
+
+Code: manager.js
+[0m [90m 138 |[39m             [36mconst[39m timer [33m=[39m [36mthis[39m[33m.[39msetTimeoutFn(() [33m=>[39m {
+ [90m 139 |[39m                 openSubDestroy()[33m;[39m
+[31m[1m>[22m[39m[90m 140 |[39m                 onError([36mnew[39m [33mError[39m([32m"timeout"[39m))[33m;[39m
+ [90m     |[39m                                  [31m[1m^[22m[39m
+ [90m 141 |[39m                 socket[33m.[39mclose()[33m;[39m
+ [90m 142 |[39m             }[33m,[39m timeout)[33m;[39m
+ [90m 143 |[39m             [36mif[39m ([36mthis[39m[33m.[39mopts[33m.[39mautoUnref) {[0m
+Call Stack
+  setTimeoutFn$argument_0 (node_modules/socket.io-client/build/esm/manager.js:140:34)
+ LOG  🔌 Connecting to hub server: http://192.168.0.143:4001
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 12 items for category: all
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ ERROR  ❌ Connection error: [Error: websocket error] 
+
+Code: construct.js
+[0m [90m 2 |[39m [36mvar[39m setPrototypeOf [33m=[39m require([32m"./setPrototypeOf.js"[39m)[33m;[39m
+ [90m 3 |[39m [36mfunction[39m _construct(t[33m,[39m e[33m,[39m r) {
+[31m[1m>[22m[39m[90m 4 |[39m   [36mif[39m (isNativeReflectConstruct()) [36mreturn[39m [33mReflect[39m[33m.[39mconstruct[33m.[39mapply([36mnull[39m[33m,[39m arguments)[33m;[39m
+ [90m   |[39m                                                                 [31m[1m^[22m[39m
+ [90m 5 |[39m   [36mvar[39m o [33m=[39m [[36mnull[39m][33m;[39m
+ [90m 6 |[39m   o[33m.[39mpush[33m.[39mapply(o[33m,[39m e)[33m;[39m
+ [90m 7 |[39m   [36mvar[39m p [33m=[39m [36mnew[39m (t[33m.[39mbind[33m.[39mapply(t[33m,[39m o))()[33m;[39m[0m
+Call Stack
+  construct (<native>)
+  apply (<native>)
+  _construct (node_modules/@babel/runtime/helpers/construct.js:4:65)
+  Wrapper (node_modules/@babel/runtime/helpers/wrapNativeSuper.js:15:23)
+  construct (<native>)
+  _callSuper (node_modules/@babel/runtime/helpers/callSuper.js:5:108)
+  TransportError#constructor (node_modules/engine.io-client/build/esm/transport.js:7:9)
+  Transport#onError (node_modules/engine.io-client/build/esm/transport.js:39:55)
+  ws.onerror (node_modules/engine.io-client/build/esm/transports/websocket.js:49:46)
+  invoke (node_modules/react-native/src/private/webapis/dom/events/EventTarget.js:382:29)
+  dispatch (node_modules/react-native/src/private/webapis/dom/events/EventTarget.js:293:11)
+  dispatchEvent (node_modules/react-native/src/private/webapis/dom/events/EventTarget.js:207:13)
+  _eventEmitter.addListener$argument_1 (node_modules/react-native/Libraries/WebSocket/WebSocket.js:278:27)
+  apply (<native>)
+  emit (node_modules/react-native/Libraries/vendor/emitter/EventEmitter.js:130:36)
+  apply (<native>)
+  <anonymous> (node_modules/@babel/runtime/helpers/superPropGet.js:6:19)
+  RCTDeviceEventEmitterImpl#emit (node_modules/react-native/Libraries/EventEmitter/RCTDeviceEventEmitter.js:33:5)
+ LOG  🔍 Filtered Products: 12 items for category: all
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: food
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  Order sent to other devices: 1765454998354-gddhuir8g
+ LOG  📝 Queued event for offline sync: order.created
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  Order status update sent to other devices: 1765454998354-gddhuir8g preparing
+ LOG  📝 Queued event for offline sync: order.updated
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  Order status update sent to other devices: 1765454998354-gddhuir8g ready
+ LOG  📝 Queued event for offline sync: order.updated
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  Order status update sent to other devices: 1765454998354-gddhuir8g completed
+ LOG  📝 Queued event for offline sync: order.updated
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  Order sent to other devices: 1765455022502-27wkzjndq
+ LOG  📝 Queued event for offline sync: order.created
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other
+ LOG  🛒 POS Screen - Products: 12 items, Loading: false user {"email": "admin@restaurant.demo", "permissions": ["*"], "role": "admin", "storeId": "store_001", "tenantId": "restaurant_demo", "userId": "user_admin", "userName": "ADMIN"}
+ LOG  🔍 Filtered Products: 6 items for category: other

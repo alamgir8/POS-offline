@@ -1,4 +1,6 @@
-// Data management context with demo products (simplified)
+// Enhanced Data management context with offline-first support
+// Supports restaurant and retail modes with park orders, KDS/BDS tickets, and order locking
+
 import {
   createContext,
   useContext,
@@ -6,46 +8,139 @@ import {
   useEffect,
   useRef,
   ReactNode,
+  useCallback,
 } from "react";
 import { io, Socket } from "socket.io-client";
 import { saveToLocalStorage, loadFromLocalStorage } from "../utils";
 import { useAuth } from "./AuthContext";
 
-// Product interface to match native
+// ============================================================
+// TYPES
+// ============================================================
+
+type TenantType = "restaurant" | "retail";
+type ProductCategory = "food" | "beverage" | "retail" | "other";
+type OrderStatus =
+  | "draft"
+  | "active"
+  | "parked"
+  | "preparing"
+  | "ready"
+  | "paid"
+  | "completed"
+  | "cancelled";
+type TicketStatus = "pending" | "started" | "completed" | "cancelled";
+type SyncStatus =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "syncing"
+  | "error";
+
 interface Product {
   id: string;
+  sku?: string;
   name: string;
   price: number;
-  category: "food" | "other";
+  category: ProductCategory;
   available: boolean;
   description?: string;
 }
 
-// Order interface
 interface OrderItem {
   id: string;
+  sku?: string;
   name: string;
   price: number;
   quantity: number;
-  category: "food" | "other";
+  category: ProductCategory;
   notes?: string;
+  status?: "pending" | "preparing" | "ready" | "served";
+  modifiers?: { id: string; name: string; price: number }[];
 }
 
 interface Order {
   id: string;
   orderNumber: string;
+  tenantId: string;
+  storeId: string;
   items: OrderItem[];
   total: number;
   tax: number;
   subtotal: number;
-  status: "pending" | "preparing" | "ready" | "completed" | "cancelled";
+  status: OrderStatus;
   tableNumber?: string;
   customerName?: string;
+  guestCount?: number;
+  isParked?: boolean;
+  parkedAt?: string;
+  parkedBy?: string;
   createdAt: string;
   updatedAt: string;
+  paidAt?: string;
+  deviceId: string;
+  version: number;
+  lamport: number;
+  syncStatus?: "pending" | "synced" | "error";
+  // Lock tracking
+  isLocked?: boolean;
+  lockedBy?: {
+    deviceId: string;
+    userName: string;
+    acquiredAt: string;
+  };
+}
+
+interface KDSTicket {
+  ticketId: string;
+  orderId: string;
+  orderNumber: string;
+  tenantId: string;
+  storeId: string;
+  type: "kds";
+  items: OrderItem[];
+  status: TicketStatus;
+  tableNumber?: string;
+  notes?: string;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  version: number;
+  lamport: number;
+}
+
+interface BDSTicket {
+  ticketId: string;
+  orderId: string;
+  orderNumber: string;
+  tenantId: string;
+  storeId: string;
+  type: "bds";
+  items: OrderItem[];
+  status: TicketStatus;
+  tableNumber?: string;
+  notes?: string;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  version: number;
+  lamport: number;
+}
+
+interface OrderLockInfo {
+  orderId: string;
+  deviceId: string;
+  userName: string;
+  acquiredAt: string;
+  expiresAt?: string;
 }
 
 interface DataContextType {
+  // Configuration
+  tenantType: TenantType;
+  isRestaurantMode: boolean;
+  isRetailMode: boolean;
+
   // Products
   products: Product[];
   isLoading: boolean;
@@ -53,26 +148,56 @@ interface DataContextType {
 
   // Orders
   orders: Order[];
+  parkedOrders: Order[];
+  activeOrders: Order[];
   loadOrders: () => Promise<void>;
-  addOrder: (
-    order: Omit<Order, "id" | "createdAt" | "updatedAt">
+  createOrder: (
+    orderData: Omit<
+      Order,
+      "id" | "orderNumber" | "createdAt" | "updatedAt" | "version" | "lamport"
+    >
   ) => Promise<Order>;
   updateOrder: (orderId: string, updates: Partial<Order>) => Promise<void>;
+  parkOrder: (orderId: string) => Promise<void>;
+  unparkOrder: (orderId: string) => Promise<Order | null>;
+  payOrder: (
+    orderId: string,
+    paymentMethod: "cash" | "card" | "digital"
+  ) => Promise<void>;
+  cancelOrder: (orderId: string) => Promise<void>;
 
-  // KDS/BDS Orders (derived from main orders)
-  kdsOrders: Order[];
-  bdsOrders: Order[];
+  // Order Locking (for park orders)
+  acquireLock: (
+    orderId: string
+  ) => Promise<{ success: boolean; error?: string; holder?: OrderLockInfo }>;
+  releaseLock: (orderId: string) => Promise<void>;
+  getLockStatus: (orderId: string) => OrderLockInfo | null;
+  orderLocks: Map<string, OrderLockInfo>;
+
+  // KDS/BDS Tickets
+  kdsTickets: KDSTicket[];
+  bdsTickets: BDSTicket[];
+  pendingKdsTickets: KDSTicket[];
+  pendingBdsTickets: BDSTicket[];
+  completeKdsTicket: (ticketId: string) => Promise<void>;
+  completeBdsTicket: (ticketId: string) => Promise<void>;
 
   // Real-time sync status
   isConnected: boolean;
-  connectionStatus: "disconnected" | "connecting" | "connected" | "error";
+  connectionStatus: SyncStatus;
+  hubUrl: string | null;
+  deviceId: string;
+  lamportClock: number;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-// Demo products data (same as native)
+// ============================================================
+// DEMO DATA
+// ============================================================
+
 const demoProducts: Product[] = [
-  // Food items
+  // Food items (go to KDS)
   {
     id: "1",
     name: "Burger",
@@ -121,13 +246,12 @@ const demoProducts: Product[] = [
     available: true,
     description: "Grilled ribeye steak",
   },
-
-  // Other items (drinks, etc.)
+  // Beverage items (go to BDS)
   {
     id: "7",
     name: "Coffee",
     price: 3.99,
-    category: "other",
+    category: "beverage",
     available: true,
     description: "Hot brewed coffee",
   },
@@ -135,7 +259,7 @@ const demoProducts: Product[] = [
     id: "8",
     name: "Tea",
     price: 2.99,
-    category: "other",
+    category: "beverage",
     available: true,
     description: "Earl grey tea",
   },
@@ -143,7 +267,7 @@ const demoProducts: Product[] = [
     id: "9",
     name: "Soda",
     price: 2.49,
-    category: "other",
+    category: "beverage",
     available: true,
     description: "Refreshing cola",
   },
@@ -151,7 +275,7 @@ const demoProducts: Product[] = [
     id: "10",
     name: "Beer",
     price: 5.99,
-    category: "other",
+    category: "beverage",
     available: true,
     description: "Cold draft beer",
   },
@@ -159,7 +283,7 @@ const demoProducts: Product[] = [
     id: "11",
     name: "Wine",
     price: 8.99,
-    category: "other",
+    category: "beverage",
     available: true,
     description: "House red wine",
   },
@@ -167,32 +291,104 @@ const demoProducts: Product[] = [
     id: "12",
     name: "Juice",
     price: 3.49,
-    category: "other",
+    category: "beverage",
     available: true,
     description: "Fresh orange juice",
   },
 ];
 
+// ============================================================
+// HELPER FUNCTIONS
+// ============================================================
+
+function generateId(prefix?: string): string {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 11);
+  return prefix ? `${prefix}-${timestamp}-${random}` : `${timestamp}-${random}`;
+}
+
+function generateOrderNumber(): string {
+  const now = new Date();
+  const datePart = now.toISOString().slice(0, 10).replace(/-/g, "");
+  const timePart = String(now.getTime()).slice(-4);
+  return `ORD-${datePart}-${timePart}`;
+}
+
+function filterItemsByCategory(
+  items: OrderItem[],
+  categories: ProductCategory[]
+): OrderItem[] {
+  return items.filter((item) => categories.includes(item.category));
+}
+
+// ============================================================
+// PROVIDER COMPONENT
+// ============================================================
+
 export function DataProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated } = useAuth();
+
+  // Core state
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [kdsTickets, setKdsTickets] = useState<KDSTicket[]>([]);
+  const [bdsTickets, setBdsTickets] = useState<BDSTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [orderLocks, setOrderLocks] = useState<Map<string, OrderLockInfo>>(
+    new Map()
+  );
 
-  // Real-time sync state
+  // Sync state
   const [isConnected, setIsConnected] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<
-    "disconnected" | "connecting" | "connected" | "error"
-  >("disconnected");
+  const [connectionStatus, setConnectionStatus] =
+    useState<SyncStatus>("disconnected");
+  const [hubUrl, setHubUrl] = useState<string | null>(null);
+  const [lamportClock, setLamportClock] = useState(Date.now());
+
+  // Device ID (persisted)
+  const [deviceId] = useState(() => {
+    const stored = loadFromLocalStorage<string>("pos_device_id");
+    if (stored) return stored;
+    const newId = generateId("web");
+    saveToLocalStorage("pos_device_id", newId);
+    return newId;
+  });
+
+  // Refs
   const socketRef = useRef<Socket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const offlineQueueRef = useRef<any[]>([]);
+  const lockRenewalIntervals = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
-  // Hub discovery function for web
+  // Tenant type from user
+  const tenantType: TenantType = user?.tenantId?.includes("restaurant")
+    ? "restaurant"
+    : user?.tenantId?.includes("retail")
+    ? "retail"
+    : "restaurant";
+  const isRestaurantMode = tenantType === "restaurant";
+  const isRetailMode = tenantType === "retail";
+
+  // ============================================================
+  // LAMPORT CLOCK
+  // ============================================================
+
+  const incrementClock = useCallback((): number => {
+    setLamportClock((prev) => prev + 1);
+    return lamportClock + 1;
+  }, [lamportClock]);
+
+  const updateClock = useCallback((receivedClock: number): void => {
+    setLamportClock((prev) => Math.max(prev, receivedClock) + 1);
+  }, []);
+
+  // ============================================================
+  // HUB DISCOVERY
+  // ============================================================
+
   const discoverHubs = async (): Promise<string[]> => {
     const commonPorts = [4001, 4000, 3001, 8001];
     const discoveries: string[] = [];
-
     const candidateHosts = ["localhost", "127.0.0.1", "192.168.0.143"];
 
     const promises = candidateHosts.flatMap((host) =>
@@ -203,14 +399,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
             method: "GET",
             signal: AbortSignal.timeout(2000),
           });
-
           if (response.ok) {
             const data = await response.json();
             if (data.service === "cloudclever-pos-hub") {
               return `http://${host}:${port}`;
             }
           }
-        } catch (error) {
+        } catch {
           // Ignore failed connections
         }
         return null;
@@ -218,17 +413,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
     );
 
     const results = await Promise.allSettled(promises);
-
     for (const result of results) {
       if (result.status === "fulfilled" && result.value) {
         discoveries.push(result.value);
       }
     }
-
     return discoveries;
   };
 
-  // Initialize real-time connection
+  // ============================================================
+  // SOCKET CONNECTION
+  // ============================================================
+
   useEffect(() => {
     if (!isAuthenticated || !user) {
       return;
@@ -239,18 +435,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setConnectionStatus("connecting");
 
       try {
-        // First try to discover hubs on the LAN
         const availableHubs = await discoverHubs();
-        let hubUrl = "http://localhost:4001"; // fallback
+        let selectedHubUrl = "http://localhost:4001";
 
         if (availableHubs.length > 0) {
-          hubUrl = availableHubs[0];
-          console.log("🎯 Found hub server:", hubUrl);
+          selectedHubUrl = availableHubs[0];
+          console.log("🎯 Found hub server:", selectedHubUrl);
         } else {
           console.log("🔍 No hubs discovered, using localhost fallback");
         }
 
-        const socket = io(hubUrl, {
+        setHubUrl(selectedHubUrl);
+
+        const socket = io(selectedHubUrl, {
           transports: ["websocket", "polling"],
           autoConnect: true,
           reconnection: true,
@@ -262,22 +459,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
         socketRef.current = socket;
 
         socket.on("connect", () => {
-          console.log("✅ Connected to hub server:", hubUrl);
+          console.log("✅ Connected to hub server:", selectedHubUrl);
           setIsConnected(true);
           setConnectionStatus("connected");
 
-          // Send hello message to join tenant/store room
+          // Send hello message
           socket.emit("hello", {
-            deviceId: `web-${Date.now()}`,
+            deviceId,
             tenantId: user.tenantId || "demo-tenant",
             storeId: user.storeId || "demo-store",
+            cursor: lamportClock,
             auth: {
               sessionId: "demo-session",
               userId: user.userId,
             },
           });
 
-          // Process offline queue when reconnected
+          // Process offline queue
           if (offlineQueueRef.current.length > 0) {
             console.log(
               `📤 Processing ${offlineQueueRef.current.length} offline events`
@@ -290,54 +488,38 @@ export function DataProvider({ children }: { children: ReactNode }) {
         });
 
         socket.on("disconnect", (reason) => {
-          console.log("❌ Disconnected from hub server, reason:", reason);
+          console.log("❌ Disconnected from hub server:", reason);
           setIsConnected(false);
           setConnectionStatus("disconnected");
 
-          // Auto-reconnect for unexpected disconnections
           if (reason !== "io client disconnect") {
-            console.log("🔄 Setting up auto-reconnect...");
-            if (reconnectTimeoutRef.current) {
-              clearTimeout(reconnectTimeoutRef.current);
-            }
-            reconnectTimeoutRef.current = setTimeout(() => {
-              connectToHub();
-            }, 3000);
+            reconnectTimeoutRef.current = setTimeout(connectToHub, 3000);
           }
         });
 
         socket.on("connect_error", (error) => {
           console.error("❌ Connection error:", error);
           setConnectionStatus("error");
-
-          // Try to reconnect with different hub after error
-          if (reconnectTimeoutRef.current) {
-            clearTimeout(reconnectTimeoutRef.current);
-          }
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connectToHub();
-          }, 5000);
+          reconnectTimeoutRef.current = setTimeout(connectToHub, 5000);
         });
 
-        // Listen for real-time order events
-        socket.on("events.relay", (event: any) => {
-          console.log("📨 Received real-time event:", event);
+        // Event handlers
+        socket.on("events.relay", handleEventRelay);
+        socket.on("events.bulk", handleBulkEvents);
+        socket.on("hello.ack", (ack) =>
+          console.log("✅ Hello acknowledged:", ack)
+        );
 
-          if (event.aggregateType === "order") {
-            handleOrderEvent(event);
-          }
-        });
-
-        socket.on("hello.ack", (ack: any) => {
-          console.log("✅ Hello acknowledged by hub server:", ack);
-        });
+        // Lock event handlers
+        socket.on("order.locked", handleOrderLocked);
+        socket.on("order.lock.released", handleOrderLockReleased);
+        socket.on("order.lock.response", handleLockResponse);
       } catch (error) {
-        console.error("Error setting up real-time connection:", error);
+        console.error("Error setting up connection:", error);
         setConnectionStatus("error");
       }
     };
 
-    // Start the connection process
     connectToHub();
 
     return () => {
@@ -348,79 +530,657 @@ export function DataProvider({ children }: { children: ReactNode }) {
         socketRef.current.disconnect();
         socketRef.current = null;
       }
+      // Clear lock renewal intervals
+      lockRenewalIntervals.current.forEach((interval) =>
+        clearInterval(interval)
+      );
+      lockRenewalIntervals.current.clear();
     };
   }, [isAuthenticated, user]);
 
-  // Handle incoming order events
-  const handleOrderEvent = (event: any) => {
-    try {
-      switch (event.type) {
-        case "order.created":
-          // Add new order if not already exists
-          setOrders((prevOrders) => {
-            const exists = prevOrders.find((o) => o.id === event.aggregateId);
-            if (!exists && event.payload.order) {
-              const newOrders = [event.payload.order, ...prevOrders];
-              saveToLocalStorage("web_orders", newOrders);
-              return newOrders;
-            }
-            return prevOrders;
-          });
-          break;
+  // ============================================================
+  // EVENT HANDLERS
+  // ============================================================
 
-        case "order.updated":
-          // Update existing order
-          setOrders((prevOrders) => {
-            const updatedOrders = prevOrders.map((order) =>
-              order.id === event.aggregateId
-                ? { ...order, ...event.payload.updates, updatedAt: event.at }
-                : order
-            );
-            saveToLocalStorage("web_orders", updatedOrders);
-            return updatedOrders;
-          });
+  const handleEventRelay = useCallback(
+    (event: any) => {
+      console.log("📨 Received event:", event.type);
+      updateClock(event.clock?.lamport || 0);
+
+      switch (event.aggregateType) {
+        case "order":
+          handleOrderEvent(event);
+          break;
+        case "kds":
+          handleKdsEvent(event);
+          break;
+        case "bds":
+          handleBdsEvent(event);
           break;
       }
-    } catch (error) {
-      console.error("Error handling order event:", error);
-    }
+    },
+    [updateClock]
+  );
+
+  const handleBulkEvents = useCallback(
+    (bulk: { events: any[]; fromLamport: number; toLamport: number }) => {
+      console.log(`📦 Received ${bulk.events.length} bulk events`);
+      setConnectionStatus("syncing");
+
+      bulk.events.forEach((event) => {
+        handleEventRelay(event);
+      });
+
+      setConnectionStatus("connected");
+    },
+    [handleEventRelay]
+  );
+
+  const handleOrderEvent = (event: any) => {
+    const { type, payload, aggregateId } = event;
+
+    setOrders((prev) => {
+      switch (type) {
+        case "order.created":
+          if (payload.order && !prev.find((o) => o.id === payload.order.id)) {
+            const newOrders = [payload.order, ...prev];
+            saveToLocalStorage("web_orders", newOrders);
+            return newOrders;
+          }
+          return prev;
+
+        case "order.updated":
+        case "order.parked":
+        case "order.unparked":
+        case "order.paid":
+        case "order.completed":
+        case "order.cancelled":
+          const updated = prev.map((order) =>
+            order.id === aggregateId
+              ? {
+                  ...order,
+                  ...(payload.updates || payload),
+                  updatedAt: event.at,
+                }
+              : order
+          );
+          saveToLocalStorage("web_orders", updated);
+          return updated;
+
+        default:
+          return prev;
+      }
+    });
   };
 
-  // Emit order event to hub
-  const emitOrderEvent = (
-    eventType: string,
-    aggregateId: string,
-    payload: any
-  ) => {
-    const event = {
-      eventId: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+  const handleKdsEvent = (event: any) => {
+    const { type, payload, aggregateId } = event;
+
+    setKdsTickets((prev) => {
+      switch (type) {
+        case "kds.ticket.created":
+          if (
+            payload.ticket &&
+            !prev.find((t) => t.ticketId === payload.ticket.ticketId)
+          ) {
+            return [payload.ticket, ...prev];
+          }
+          return prev;
+
+        case "kds.ticket.completed":
+        case "kds.ticket.started":
+          return prev.map((ticket) =>
+            ticket.ticketId === aggregateId
+              ? {
+                  ...ticket,
+                  ...payload,
+                  status: type.includes("completed") ? "completed" : "started",
+                }
+              : ticket
+          );
+
+        default:
+          return prev;
+      }
+    });
+  };
+
+  const handleBdsEvent = (event: any) => {
+    const { type, payload, aggregateId } = event;
+
+    setBdsTickets((prev) => {
+      switch (type) {
+        case "bds.ticket.created":
+          if (
+            payload.ticket &&
+            !prev.find((t) => t.ticketId === payload.ticket.ticketId)
+          ) {
+            return [payload.ticket, ...prev];
+          }
+          return prev;
+
+        case "bds.ticket.completed":
+        case "bds.ticket.started":
+          return prev.map((ticket) =>
+            ticket.ticketId === aggregateId
+              ? {
+                  ...ticket,
+                  ...payload,
+                  status: type.includes("completed") ? "completed" : "started",
+                }
+              : ticket
+          );
+
+        default:
+          return prev;
+      }
+    });
+  };
+
+  // ============================================================
+  // LOCK HANDLERS
+  // ============================================================
+
+  const handleOrderLocked = useCallback(
+    (data: {
+      orderId: string;
+      deviceId: string;
+      userName: string;
+      acquiredAt: string;
+    }) => {
+      console.log("🔒 Order locked by another device:", data);
+      setOrderLocks((prev) => {
+        const newLocks = new Map(prev);
+        newLocks.set(data.orderId, {
+          orderId: data.orderId,
+          deviceId: data.deviceId,
+          userName: data.userName,
+          acquiredAt: data.acquiredAt,
+        });
+        return newLocks;
+      });
+    },
+    []
+  );
+
+  const handleOrderLockReleased = useCallback(
+    (data: { orderId: string; deviceId: string; reason: string }) => {
+      console.log("🔓 Order lock released:", data);
+      setOrderLocks((prev) => {
+        const newLocks = new Map(prev);
+        newLocks.delete(data.orderId);
+        return newLocks;
+      });
+    },
+    []
+  );
+
+  const handleLockResponse = useCallback((response: any) => {
+    console.log("🔐 Lock response:", response);
+  }, []);
+
+  // ============================================================
+  // EVENT EMISSION
+  // ============================================================
+
+  const emitEvent = useCallback(
+    (event: any) => {
+      const eventWithClock = {
+        ...event,
+        clock: {
+          lamport: incrementClock(),
+          deviceId,
+        },
+      };
+
+      if (socketRef.current?.connected) {
+        socketRef.current.emit("events.append", eventWithClock);
+      } else {
+        offlineQueueRef.current.push(eventWithClock);
+        console.log("📝 Queued event for offline sync:", event.type);
+      }
+    },
+    [deviceId, incrementClock]
+  );
+
+  // ============================================================
+  // ORDER OPERATIONS
+  // ============================================================
+
+  const createOrder = async (
+    orderData: Omit<
+      Order,
+      "id" | "orderNumber" | "createdAt" | "updatedAt" | "version" | "lamport"
+    >
+  ): Promise<Order> => {
+    const now = new Date().toISOString();
+    const orderId = generateId("order");
+    const newLamport = incrementClock();
+
+    const newOrder: Order = {
+      ...orderData,
+      id: orderId,
+      orderNumber: generateOrderNumber(),
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
+      lamport: newLamport,
+      deviceId,
+      syncStatus: "pending",
+    };
+
+    // Update local state
+    setOrders((prev) => {
+      const updated = [newOrder, ...prev];
+      saveToLocalStorage("web_orders", updated);
+      return updated;
+    });
+
+    // Emit event
+    emitEvent({
+      eventId: generateId("evt"),
       tenantId: user?.tenantId || "demo-tenant",
       storeId: user?.storeId || "demo-store",
       aggregateType: "order",
-      aggregateId,
+      aggregateId: orderId,
       version: 1,
-      type: eventType,
-      at: new Date().toISOString(),
-      actor: {
-        deviceId: `web-${Date.now()}`,
-        userId: user?.userId,
-        userName: user?.userName,
-      },
-      clock: {
-        lamport: Date.now(),
-        deviceId: `web-${Date.now()}`,
-      },
-      payload,
-    };
+      type: "order.created",
+      at: now,
+      actor: { deviceId, userId: user?.userId, userName: user?.userName },
+      payload: { order: newOrder },
+    });
 
+    // Create KDS/BDS tickets for restaurant mode
+    if (isRestaurantMode) {
+      const foodItems = filterItemsByCategory(newOrder.items, ["food"]);
+      const beverageItems = filterItemsByCategory(newOrder.items, [
+        "beverage",
+        "other",
+      ]);
+
+      if (foodItems.length > 0) {
+        const kdsTicket: KDSTicket = {
+          ticketId: generateId("kds"),
+          orderId,
+          orderNumber: newOrder.orderNumber,
+          tenantId: newOrder.tenantId,
+          storeId: newOrder.storeId,
+          type: "kds",
+          items: foodItems,
+          status: "pending",
+          tableNumber: newOrder.tableNumber,
+          createdAt: now,
+          version: 1,
+          lamport: incrementClock(),
+        };
+
+        setKdsTickets((prev) => [kdsTicket, ...prev]);
+
+        emitEvent({
+          eventId: generateId("evt"),
+          tenantId: newOrder.tenantId,
+          storeId: newOrder.storeId,
+          aggregateType: "kds",
+          aggregateId: kdsTicket.ticketId,
+          version: 1,
+          type: "kds.ticket.created",
+          at: now,
+          actor: { deviceId, userId: user?.userId, userName: user?.userName },
+          payload: { ticket: kdsTicket },
+        });
+      }
+
+      if (beverageItems.length > 0) {
+        const bdsTicket: BDSTicket = {
+          ticketId: generateId("bds"),
+          orderId,
+          orderNumber: newOrder.orderNumber,
+          tenantId: newOrder.tenantId,
+          storeId: newOrder.storeId,
+          type: "bds",
+          items: beverageItems,
+          status: "pending",
+          tableNumber: newOrder.tableNumber,
+          createdAt: now,
+          version: 1,
+          lamport: incrementClock(),
+        };
+
+        setBdsTickets((prev) => [bdsTicket, ...prev]);
+
+        emitEvent({
+          eventId: generateId("evt"),
+          tenantId: newOrder.tenantId,
+          storeId: newOrder.storeId,
+          aggregateType: "bds",
+          aggregateId: bdsTicket.ticketId,
+          version: 1,
+          type: "bds.ticket.created",
+          at: now,
+          actor: { deviceId, userId: user?.userId, userName: user?.userName },
+          payload: { ticket: bdsTicket },
+        });
+      }
+    }
+
+    return newOrder;
+  };
+
+  const updateOrder = async (
+    orderId: string,
+    updates: Partial<Order>
+  ): Promise<void> => {
+    const now = new Date().toISOString();
+
+    setOrders((prev) => {
+      const updated = prev.map((order) =>
+        order.id === orderId
+          ? {
+              ...order,
+              ...updates,
+              updatedAt: now,
+              version: order.version + 1,
+              lamport: incrementClock(),
+            }
+          : order
+      );
+      saveToLocalStorage("web_orders", updated);
+      return updated;
+    });
+
+    emitEvent({
+      eventId: generateId("evt"),
+      tenantId: user?.tenantId || "demo-tenant",
+      storeId: user?.storeId || "demo-store",
+      aggregateType: "order",
+      aggregateId: orderId,
+      version: 1,
+      type: "order.updated",
+      at: now,
+      actor: { deviceId, userId: user?.userId, userName: user?.userName },
+      payload: { updates },
+    });
+  };
+
+  const parkOrder = async (orderId: string): Promise<void> => {
+    const now = new Date().toISOString();
+
+    await updateOrder(orderId, {
+      status: "parked",
+      isParked: true,
+      parkedAt: now,
+      parkedBy: user?.userName || user?.userId || deviceId,
+    });
+
+    emitEvent({
+      eventId: generateId("evt"),
+      tenantId: user?.tenantId || "demo-tenant",
+      storeId: user?.storeId || "demo-store",
+      aggregateType: "order",
+      aggregateId: orderId,
+      version: 1,
+      type: "order.parked",
+      at: now,
+      actor: { deviceId, userId: user?.userId, userName: user?.userName },
+      payload: { parkedAt: now },
+    });
+  };
+
+  const unparkOrder = async (orderId: string): Promise<Order | null> => {
+    // First acquire lock
+    const lockResult = await acquireLock(orderId);
+    if (!lockResult.success) {
+      console.error(
+        "Cannot unpark order - locked by another device:",
+        lockResult.holder
+      );
+      return null;
+    }
+
+    const now = new Date().toISOString();
+
+    let unparkedOrder: Order | null = null;
+
+    setOrders((prev) => {
+      const updated = prev.map((order) => {
+        if (order.id === orderId) {
+          unparkedOrder = {
+            ...order,
+            status: "active",
+            isParked: false,
+            updatedAt: now,
+            version: order.version + 1,
+            lamport: incrementClock(),
+          };
+          return unparkedOrder;
+        }
+        return order;
+      });
+      saveToLocalStorage("web_orders", updated);
+      return updated;
+    });
+
+    emitEvent({
+      eventId: generateId("evt"),
+      tenantId: user?.tenantId || "demo-tenant",
+      storeId: user?.storeId || "demo-store",
+      aggregateType: "order",
+      aggregateId: orderId,
+      version: 1,
+      type: "order.unparked",
+      at: now,
+      actor: { deviceId, userId: user?.userId, userName: user?.userName },
+      payload: { unparkedAt: now },
+    });
+
+    return unparkedOrder;
+  };
+
+  const payOrder = async (
+    orderId: string,
+    paymentMethod: "cash" | "card" | "digital"
+  ): Promise<void> => {
+    const now = new Date().toISOString();
+
+    await updateOrder(orderId, {
+      status: "paid",
+      isParked: false,
+      paidAt: now,
+    });
+
+    // Release lock if held
+    await releaseLock(orderId);
+
+    emitEvent({
+      eventId: generateId("evt"),
+      tenantId: user?.tenantId || "demo-tenant",
+      storeId: user?.storeId || "demo-store",
+      aggregateType: "order",
+      aggregateId: orderId,
+      version: 1,
+      type: "order.paid",
+      at: now,
+      actor: { deviceId, userId: user?.userId, userName: user?.userName },
+      payload: { paidAt: now, paymentMethod },
+    });
+  };
+
+  const cancelOrder = async (orderId: string): Promise<void> => {
+    await updateOrder(orderId, { status: "cancelled" });
+    await releaseLock(orderId);
+  };
+
+  // ============================================================
+  // LOCK OPERATIONS
+  // ============================================================
+
+  const acquireLock = async (
+    orderId: string
+  ): Promise<{ success: boolean; error?: string; holder?: OrderLockInfo }> => {
+    return new Promise((resolve) => {
+      if (!socketRef.current?.connected) {
+        // In offline mode, allow local lock
+        const existingLock = orderLocks.get(orderId);
+        if (existingLock && existingLock.deviceId !== deviceId) {
+          resolve({
+            success: false,
+            error: "ORDER_LOCKED",
+            holder: existingLock,
+          });
+          return;
+        }
+
+        const lock: OrderLockInfo = {
+          orderId,
+          deviceId,
+          userName: user?.userName || "Unknown",
+          acquiredAt: new Date().toISOString(),
+        };
+        setOrderLocks((prev) => new Map(prev).set(orderId, lock));
+        resolve({ success: true });
+        return;
+      }
+
+      const handleResponse = (response: any) => {
+        socketRef.current?.off("order.lock.response", handleResponse);
+
+        if (response.orderId !== orderId) return;
+
+        if (response.success) {
+          setOrderLocks((prev) => {
+            const newLocks = new Map(prev);
+            newLocks.set(orderId, {
+              orderId,
+              deviceId,
+              userName: user?.userName || "Unknown",
+              acquiredAt: new Date().toISOString(),
+              expiresAt: response.lock?.expiresAt,
+            });
+            return newLocks;
+          });
+
+          // Set up lock renewal
+          const renewalInterval = setInterval(() => {
+            socketRef.current?.emit("order.lock.renew", {
+              orderId,
+              tenantId: user?.tenantId || "demo-tenant",
+              storeId: user?.storeId || "demo-store",
+            });
+          }, 2 * 60 * 1000); // Renew every 2 minutes
+
+          lockRenewalIntervals.current.set(orderId, renewalInterval);
+
+          resolve({ success: true });
+        } else {
+          resolve({
+            success: false,
+            error: response.error,
+            holder: response.currentHolder,
+          });
+        }
+      };
+
+      socketRef.current.on("order.lock.response", handleResponse);
+      socketRef.current.emit("order.lock.request", {
+        orderId,
+        tenantId: user?.tenantId || "demo-tenant",
+        storeId: user?.storeId || "demo-store",
+      });
+
+      // Timeout after 5 seconds
+      setTimeout(() => {
+        socketRef.current?.off("order.lock.response", handleResponse);
+        resolve({ success: false, error: "LOCK_TIMEOUT" });
+      }, 5000);
+    });
+  };
+
+  const releaseLock = async (orderId: string): Promise<void> => {
+    // Clear renewal interval
+    const interval = lockRenewalIntervals.current.get(orderId);
+    if (interval) {
+      clearInterval(interval);
+      lockRenewalIntervals.current.delete(orderId);
+    }
+
+    // Remove from local state
+    setOrderLocks((prev) => {
+      const newLocks = new Map(prev);
+      newLocks.delete(orderId);
+      return newLocks;
+    });
+
+    // Notify hub
     if (socketRef.current?.connected) {
-      socketRef.current.emit("events.append", event);
-    } else {
-      // Queue for when reconnected
-      offlineQueueRef.current.push(event);
-      console.log("📝 Queued event for offline sync:", eventType);
+      socketRef.current.emit("order.lock.release", {
+        orderId,
+        tenantId: user?.tenantId || "demo-tenant",
+        storeId: user?.storeId || "demo-store",
+      });
     }
   };
+
+  const getLockStatus = (orderId: string): OrderLockInfo | null => {
+    return orderLocks.get(orderId) || null;
+  };
+
+  // ============================================================
+  // TICKET OPERATIONS
+  // ============================================================
+
+  const completeKdsTicket = async (ticketId: string): Promise<void> => {
+    const now = new Date().toISOString();
+
+    setKdsTickets((prev) =>
+      prev.map((ticket) =>
+        ticket.ticketId === ticketId
+          ? { ...ticket, status: "completed", completedAt: now }
+          : ticket
+      )
+    );
+
+    emitEvent({
+      eventId: generateId("evt"),
+      tenantId: user?.tenantId || "demo-tenant",
+      storeId: user?.storeId || "demo-store",
+      aggregateType: "kds",
+      aggregateId: ticketId,
+      version: 1,
+      type: "kds.ticket.completed",
+      at: now,
+      actor: { deviceId, userId: user?.userId, userName: user?.userName },
+      payload: { completedAt: now },
+    });
+  };
+
+  const completeBdsTicket = async (ticketId: string): Promise<void> => {
+    const now = new Date().toISOString();
+
+    setBdsTickets((prev) =>
+      prev.map((ticket) =>
+        ticket.ticketId === ticketId
+          ? { ...ticket, status: "completed", completedAt: now }
+          : ticket
+      )
+    );
+
+    emitEvent({
+      eventId: generateId("evt"),
+      tenantId: user?.tenantId || "demo-tenant",
+      storeId: user?.storeId || "demo-store",
+      aggregateType: "bds",
+      aggregateId: ticketId,
+      version: 1,
+      type: "bds.ticket.completed",
+      at: now,
+      actor: { deviceId, userId: user?.userId, userName: user?.userName },
+      payload: { completedAt: now },
+    });
+  };
+
+  // ============================================================
+  // DATA LOADING
+  // ============================================================
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -431,43 +1191,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const loadInitialData = async () => {
     console.log("🚀 Loading initial data...");
     await Promise.all([loadProducts(), loadOrders()]);
-    console.log("✅ Initial data loading complete");
     setIsLoading(false);
   };
 
   const loadProducts = async () => {
     try {
-      console.log("🛒 Loading products...");
-      // Try to load from storage first
       const storedProducts = loadFromLocalStorage<Product[]>("web_products");
-      console.log("📦 Raw stored products:", storedProducts);
-
       if (storedProducts && storedProducts.length > 0) {
-        console.log(
-          "📦 Loaded products from storage:",
-          storedProducts.length,
-          "items"
-        );
         setProducts(storedProducts);
       } else {
-        // Use demo data and save to storage
-        console.log(
-          "📦 No stored products, using demo data:",
-          demoProducts.length,
-          "items"
-        );
         setProducts(demoProducts);
         saveToLocalStorage("web_products", demoProducts);
-        console.log("💾 Demo products saved to storage");
       }
     } catch (error) {
-      console.error("❌ Error loading products:", error);
-      console.log(
-        "📦 Fallback to demo products:",
-        demoProducts.length,
-        "items"
-      );
-      setProducts(demoProducts); // Fallback to demo data
+      console.error("Error loading products:", error);
+      setProducts(demoProducts);
     }
   };
 
@@ -476,92 +1214,68 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const storedOrders = loadFromLocalStorage<Order[]>("web_orders");
       if (storedOrders) {
         setOrders(storedOrders);
-        console.log(
-          "📋 Loaded orders from storage:",
-          storedOrders.length,
-          "items"
-        );
       }
     } catch (error) {
       console.error("Error loading orders:", error);
     }
   };
 
-  const addOrder = async (
-    orderData: Omit<Order, "id" | "createdAt" | "updatedAt">
-  ): Promise<Order> => {
-    const newOrder: Order = {
-      ...orderData,
-      id: `order-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  // ============================================================
+  // COMPUTED VALUES
+  // ============================================================
 
-    try {
-      const updatedOrders = [newOrder, ...orders];
-      setOrders(updatedOrders);
-      saveToLocalStorage("web_orders", updatedOrders);
-
-      // Emit real-time event
-      emitOrderEvent("order.created", newOrder.id, { order: newOrder });
-
-      console.log("✅ Order created:", newOrder.id);
-      return newOrder;
-    } catch (error) {
-      console.error("Error adding order:", error);
-      throw error;
-    }
-  };
-
-  const updateOrder = async (orderId: string, updates: Partial<Order>) => {
-    try {
-      const updatedOrders = orders.map((order) =>
-        order.id === orderId
-          ? { ...order, ...updates, updatedAt: new Date().toISOString() }
-          : order
-      );
-      setOrders(updatedOrders);
-      saveToLocalStorage("web_orders", updatedOrders);
-
-      // Emit real-time event
-      emitOrderEvent("order.updated", orderId, { updates });
-
-      console.log("✅ Order updated:", orderId, updates);
-    } catch (error) {
-      console.error("Error updating order:", error);
-      throw error;
-    }
-  };
-
-  // Filter orders for KDS (kitchen) and BDS (bar)
-  const kdsOrders: Order[] = orders.filter(
-    (order) =>
-      order.items.some((item) => item.category === "food") &&
-      order.status !== "completed" &&
-      order.status !== "cancelled"
+  const parkedOrders = orders.filter(
+    (o) => o.status === "parked" || o.isParked
+  );
+  const activeOrders = orders.filter(
+    (o) =>
+      o.status === "active" || o.status === "preparing" || o.status === "ready"
+  );
+  const pendingKdsTickets = kdsTickets.filter(
+    (t) => t.status === "pending" || t.status === "started"
+  );
+  const pendingBdsTickets = bdsTickets.filter(
+    (t) => t.status === "pending" || t.status === "started"
   );
 
-  const bdsOrders: Order[] = orders.filter(
-    (order) =>
-      order.items.some((item) => item.category === "other") &&
-      order.status !== "completed" &&
-      order.status !== "cancelled"
-  );
+  // ============================================================
+  // CONTEXT VALUE
+  // ============================================================
 
   return (
     <DataContext.Provider
       value={{
+        tenantType,
+        isRestaurantMode,
+        isRetailMode,
         products,
         isLoading,
         loadProducts,
         orders,
+        parkedOrders,
+        activeOrders,
         loadOrders,
-        addOrder,
+        createOrder,
         updateOrder,
-        kdsOrders,
-        bdsOrders,
+        parkOrder,
+        unparkOrder,
+        payOrder,
+        cancelOrder,
+        acquireLock,
+        releaseLock,
+        getLockStatus,
+        orderLocks,
+        kdsTickets,
+        bdsTickets,
+        pendingKdsTickets,
+        pendingBdsTickets,
+        completeKdsTicket,
+        completeBdsTicket,
         isConnected,
         connectionStatus,
+        hubUrl,
+        deviceId,
+        lamportClock,
       }}
     >
       {children}

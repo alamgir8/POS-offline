@@ -9,12 +9,15 @@ const POSScreen = () => {
     products,
     orders,
     isLoading,
-    addOrder,
+    createOrder,
     updateOrder,
-    kdsOrders,
-    bdsOrders,
+    pendingKdsTickets,
+    pendingBdsTickets,
+    completeKdsTicket,
+    completeBdsTicket,
     isConnected,
     connectionStatus,
+    deviceId: contextDeviceId,
   } = useData();
   const { items, total, addItem, removeItem, updateQuantity, clearCart } =
     useCart();
@@ -46,7 +49,9 @@ const POSScreen = () => {
 
     try {
       const order = {
-        orderNumber: `ORD-${Date.now()}`,
+        tenantId: user?.tenantId || "demo",
+        storeId: user?.storeId || "store-1",
+        deviceId: contextDeviceId,
         tableNumber: tableNumber || undefined,
         customerName: customerName || undefined,
         items: items.map((item) => ({
@@ -54,15 +59,16 @@ const POSScreen = () => {
           name: item.product.name,
           price: item.product.price,
           quantity: item.quantity,
-          category: item.product.category,
+          category: item.product.category as "food" | "beverage" | "other",
+          notes: "",
         })),
         total,
         tax: total * 0.1, // 10% tax
         subtotal: total - total * 0.1,
-        status: "pending" as const,
+        status: "draft" as const,
       };
 
-      await addOrder(order);
+      await createOrder(order);
       clearCart();
       setTableNumber("");
       setCustomerName("");
@@ -371,7 +377,8 @@ const POSScreen = () => {
                       {order.status !== "completed" &&
                         order.status !== "cancelled" && (
                           <div className="flex space-x-2">
-                            {order.status === "pending" && (
+                            {(order.status === "draft" ||
+                              order.status === "active") && (
                               <button
                                 onClick={() =>
                                   handleStatusUpdate(order.id, "preparing")
@@ -424,40 +431,50 @@ const POSScreen = () => {
               Kitchen Display System
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {kdsOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="border-l-4 border-orange-500 bg-orange-50 p-4 rounded"
-                >
-                  <h3 className="font-semibold">{order.orderNumber}</h3>
-                  <p className="text-sm text-gray-600">
-                    Table: {order.tableNumber || "N/A"}
-                  </p>
-                  <div className="mt-2">
-                    <p className="font-medium">Food Items:</p>
-                    {order.items
-                      .filter((item) => item.category === "food")
-                      .map((item, idx) => (
+              {pendingKdsTickets.length === 0 ? (
+                <p className="text-gray-500 text-center py-8 col-span-full">
+                  No pending kitchen tickets
+                </p>
+              ) : (
+                pendingKdsTickets.map((ticket) => (
+                  <div
+                    key={ticket.ticketId}
+                    className="border-l-4 border-orange-500 bg-orange-50 p-4 rounded"
+                  >
+                    <h3 className="font-semibold">
+                      Order: {ticket.orderNumber}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Ticket: {ticket.ticketId.slice(0, 8)}...
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Status: {ticket.status.toUpperCase()}
+                    </p>
+                    <div className="mt-2">
+                      <p className="font-medium">Food Items:</p>
+                      {ticket.items.map((item, idx) => (
                         <p key={idx} className="text-sm">
                           • {item.quantity}x {item.name}
+                          {item.notes && (
+                            <span className="text-orange-600">
+                              {" "}
+                              ({item.notes})
+                            </span>
+                          )}
                         </p>
                       ))}
+                    </div>
+                    <div className="mt-2 flex space-x-2">
+                      <button
+                        onClick={() => completeKdsTicket(ticket.ticketId)}
+                        className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                      >
+                        Complete
+                      </button>
+                    </div>
                   </div>
-                  <div className="mt-2 flex space-x-2">
-                    <button
-                      onClick={() =>
-                        handleStatusUpdate(
-                          order.id,
-                          order.status === "pending" ? "preparing" : "ready"
-                        )
-                      }
-                      className="px-2 py-1 bg-orange-600 text-white rounded text-xs hover:bg-orange-700"
-                    >
-                      {order.status === "pending" ? "Start" : "Ready"}
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         )}
@@ -466,40 +483,50 @@ const POSScreen = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-4">Bar Display System</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {bdsOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="border-l-4 border-blue-500 bg-blue-50 p-4 rounded"
-                >
-                  <h3 className="font-semibold">{order.orderNumber}</h3>
-                  <p className="text-sm text-gray-600">
-                    Table: {order.tableNumber || "N/A"}
-                  </p>
-                  <div className="mt-2">
-                    <p className="font-medium">Drinks:</p>
-                    {order.items
-                      .filter((item) => item.category === "other")
-                      .map((item, idx) => (
+              {pendingBdsTickets.length === 0 ? (
+                <p className="text-gray-500 text-center py-8 col-span-full">
+                  No pending bar tickets
+                </p>
+              ) : (
+                pendingBdsTickets.map((ticket) => (
+                  <div
+                    key={ticket.ticketId}
+                    className="border-l-4 border-blue-500 bg-blue-50 p-4 rounded"
+                  >
+                    <h3 className="font-semibold">
+                      Order: {ticket.orderNumber}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Ticket: {ticket.ticketId.slice(0, 8)}...
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Status: {ticket.status.toUpperCase()}
+                    </p>
+                    <div className="mt-2">
+                      <p className="font-medium">Drinks:</p>
+                      {ticket.items.map((item, idx) => (
                         <p key={idx} className="text-sm">
                           • {item.quantity}x {item.name}
+                          {item.notes && (
+                            <span className="text-blue-600">
+                              {" "}
+                              ({item.notes})
+                            </span>
+                          )}
                         </p>
                       ))}
+                    </div>
+                    <div className="mt-2 flex space-x-2">
+                      <button
+                        onClick={() => completeBdsTicket(ticket.ticketId)}
+                        className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                      >
+                        Complete
+                      </button>
+                    </div>
                   </div>
-                  <div className="mt-2 flex space-x-2">
-                    <button
-                      onClick={() =>
-                        handleStatusUpdate(
-                          order.id,
-                          order.status === "pending" ? "preparing" : "ready"
-                        )
-                      }
-                      className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
-                    >
-                      {order.status === "pending" ? "Start" : "Ready"}
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         )}

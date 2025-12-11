@@ -121,6 +121,7 @@ export interface AuthUser {
   email: string;
   tenantId: string;
   storeId: string;
+  tenantType?: "restaurant" | "retail";
   role: "admin" | "manager" | "cashier" | "server" | "kitchen" | "bar";
   permissions: string[];
 }
@@ -348,6 +349,7 @@ export interface AuthUser {
   email: string;
   tenantId: string;
   storeId: string;
+  tenantType?: "restaurant" | "retail";
   role: "admin" | "manager" | "cashier" | "server" | "kitchen" | "bar";
   permissions: string[];
 }

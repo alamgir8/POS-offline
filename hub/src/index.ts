@@ -6,6 +6,7 @@ import { Server as SocketIOServer } from "socket.io";
 import cors from "cors";
 import mdns from "mdns";
 import { EventStore } from "./eventStore.js";
+import { LockManager } from "./lockManager.js";
 import { initializeAuth, authenticateUser, validateSession } from "./auth.js";
 import type {
   EventBase,
@@ -43,6 +44,7 @@ app.use(express.json());
 
 // Initialize stores
 const eventStore = new EventStore();
+const lockManager = new LockManager(5 * 60 * 1000); // 5 minute lock timeout
 const connectedClients = new Map<string, ConnectedClient>();
 const startTime = Date.now();
 
@@ -204,11 +206,137 @@ io.on("connection", (socket) => {
       console.log(
         `Client disconnected: ${client.deviceId} (${client.tenantId})`
       );
+
+      // Release all locks held by this device and notify other clients
+      const releasedLocks = lockManager.releaseDeviceLocks(client.deviceId);
+      if (releasedLocks.length > 0) {
+        const roomName = `${client.tenantId}:${client.storeId}`;
+        releasedLocks.forEach((lock) => {
+          io.to(roomName).emit("order.lock.released", {
+            orderId: lock.orderId,
+            deviceId: lock.deviceId,
+            reason: "device_disconnected",
+          });
+        });
+      }
+
       connectedClients.delete(socket.id);
     } else {
       console.log(`Unknown client disconnected: ${socket.id}`);
     }
   });
+
+  // Handle order lock request
+  socket.on(
+    "order.lock.request",
+    (data: { orderId: string; tenantId: string; storeId: string }) => {
+      const client = connectedClients.get(socket.id);
+      if (!client) {
+        socket.emit("error", {
+          code: "NOT_AUTHENTICATED",
+          message: "Client not properly connected",
+        });
+        return;
+      }
+
+      const result = lockManager.acquireLock(
+        data.orderId,
+        client.deviceId,
+        client.userId || "unknown",
+        client.userName || "Unknown User",
+        data.tenantId,
+        data.storeId
+      );
+
+      socket.emit("order.lock.response", {
+        orderId: data.orderId,
+        ...result,
+      });
+
+      // If lock acquired, notify other clients
+      if (result.success && result.lock) {
+        const roomName = `${data.tenantId}:${data.storeId}`;
+        socket.to(roomName).emit("order.locked", {
+          orderId: data.orderId,
+          deviceId: client.deviceId,
+          userName: client.userName || "Unknown User",
+          acquiredAt: result.lock.acquiredAt,
+        });
+      }
+    }
+  );
+
+  // Handle lock renewal
+  socket.on(
+    "order.lock.renew",
+    (data: { orderId: string; tenantId: string; storeId: string }) => {
+      const client = connectedClients.get(socket.id);
+      if (!client) return;
+
+      const result = lockManager.renewLock(
+        data.orderId,
+        client.deviceId,
+        data.tenantId,
+        data.storeId
+      );
+
+      socket.emit("order.lock.renewed", {
+        orderId: data.orderId,
+        success: result.success,
+        expiresAt: result.lock?.expiresAt,
+      });
+    }
+  );
+
+  // Handle lock release
+  socket.on(
+    "order.lock.release",
+    (data: { orderId: string; tenantId: string; storeId: string }) => {
+      const client = connectedClients.get(socket.id);
+      if (!client) return;
+
+      const result = lockManager.releaseLock(
+        data.orderId,
+        client.deviceId,
+        data.tenantId,
+        data.storeId
+      );
+
+      if (result.success) {
+        const roomName = `${data.tenantId}:${data.storeId}`;
+        io.to(roomName).emit("order.lock.released", {
+          orderId: data.orderId,
+          deviceId: client.deviceId,
+          reason: "manual_release",
+        });
+      }
+    }
+  );
+
+  // Handle lock status check
+  socket.on(
+    "order.lock.status",
+    (data: { orderId: string; tenantId: string; storeId: string }) => {
+      const lock = lockManager.getLockStatus(
+        data.orderId,
+        data.tenantId,
+        data.storeId
+      );
+
+      socket.emit("order.lock.status.response", {
+        orderId: data.orderId,
+        isLocked: !!lock,
+        lock: lock
+          ? {
+              deviceId: lock.deviceId,
+              userName: lock.userName,
+              acquiredAt: lock.acquiredAt,
+              expiresAt: lock.expiresAt,
+            }
+          : null,
+      });
+    }
+  );
 
   // Handle ping for keepalive
   socket.on("ping", () => {
@@ -335,6 +463,30 @@ app.get("/api/stats", (req, res) => {
   });
 });
 
+// Get lock statistics
+app.get("/api/locks", (req, res) => {
+  const lockStats = lockManager.getStats();
+  res.json({
+    success: true,
+    data: lockStats,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Get active locks for a tenant/store
+app.get("/api/locks/:tenantId/:storeId", (req, res) => {
+  const { tenantId, storeId } = req.params;
+  const activeLocks = lockManager.getActiveLocks(tenantId, storeId);
+  res.json({
+    success: true,
+    data: {
+      locks: activeLocks,
+      count: activeLocks.length,
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Get events (for debugging)
 app.get("/api/events", (req, res) => {
   try {
@@ -418,6 +570,7 @@ server.listen(PORT, HOST, () => {
 // Graceful shutdown
 process.on("SIGINT", () => {
   console.log("\n🛑 Gracefully shutting down hub server...");
+  lockManager.shutdown();
   server.close(() => {
     console.log("✅ Hub server closed");
     process.exit(0);
@@ -426,6 +579,7 @@ process.on("SIGINT", () => {
 
 process.on("SIGTERM", () => {
   console.log("\n🛑 Received SIGTERM, shutting down hub server...");
+  lockManager.shutdown();
   server.close(() => {
     console.log("✅ Hub server closed");
     process.exit(0);
